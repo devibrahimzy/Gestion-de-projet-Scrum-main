@@ -1,0 +1,141 @@
+import { create } from "zustand";
+import { authService } from "./auth.service";
+import type { User, AuthResponse, LoginCredentials, RegisterCredentials } from "./auth.types";
+
+interface AuthState {
+    user: User | null;
+    token: string | null;
+    isLoading: boolean;
+    error: string | null;
+    isAuthenticated: boolean;
+
+    // Actions
+    login: (credentials: LoginCredentials) => Promise<void>;
+    register: (credentials: RegisterCredentials) => Promise<void>;
+    logout: () => Promise<void>;
+    getProfile: () => Promise<void>;
+    forgotPassword: (email: string) => Promise<void>;
+    resetPassword: (token: string, newPassword: string) => Promise<void>;
+    setError: (error: string | null) => void;
+    clearError: () => void;
+    restoreSession: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+    user: null,
+    token: localStorage.getItem("authToken"),
+    isLoading: false,
+    error: null,
+    isAuthenticated: !!localStorage.getItem("authToken"),
+
+    login: async (credentials: LoginCredentials) => {
+    set({ isLoading: true, error: null });
+    try {
+        const response: AuthResponse = await authService.login(credentials);
+
+        localStorage.setItem("authToken", response.token);
+        localStorage.setItem("authUser", JSON.stringify(response.user));
+
+        set({
+            user: response.user,
+            token: response.token,
+            isAuthenticated: true,
+            isLoading: false,
+        });
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Login failed";
+        set({ error: errorMessage, isLoading: false });
+        throw err;
+    }
+},
+
+
+    register: async (credentials: RegisterCredentials) => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.register(credentials);
+            set({ isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Registration failed";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    logout: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.logout();
+            localStorage.removeItem("authToken");
+            set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                isLoading: false,
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Logout failed";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    // Inside your useAuthStore create block:
+getProfile: async () => {
+    set({ isLoading: true, error: null });
+    try {
+        const response: any = await authService.getProfile();
+        // CHANGE THIS LINE: Access the .user property from the response
+        const userData = response.user ? response.user : response; 
+        
+        set({ user: userData, isLoading: false });
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to fetch profile";
+        set({ error: errorMessage, isLoading: false });
+        throw err;
+    }
+},
+
+    forgotPassword: async (email: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.forgotPassword(email);
+            set({ isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to send reset email";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    resetPassword: async (token: string, newPassword: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.resetPassword(token, newPassword);
+            set({ isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to reset password";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    setError: (error: string | null) => {
+        set({ error });
+    },
+
+    clearError: () => {
+        set({ error: null });
+    },
+
+    restoreSession: () => {
+        const token = localStorage.getItem("authToken");
+        const storedUser = localStorage.getItem("authUser");
+        if (token) {
+            const user = storedUser ? JSON.parse(storedUser) : null;
+            set({ token, user, isAuthenticated: true });
+
+            console.log("Session restored from localStorage." , { user, token });
+        }
+    },
+}));
