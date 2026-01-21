@@ -94,6 +94,13 @@ exports.createBacklogItem = async (req, res) => {
             position = (maxPos || 0) + 1;
         }
 
+        let itemPosition = position;
+        if (!sprint_id) {
+            // For backlog, assign next position
+            const [[{ maxPos }]] = await BacklogItem.getMaxBacklogPosition(project_id);
+            itemPosition = (maxPos || 0) + 1;
+        }
+
         const newItem = {
             id: uuid(),
             project_id,
@@ -105,7 +112,7 @@ exports.createBacklogItem = async (req, res) => {
             priority: priority || 'MEDIUM',
             tags,
             status: finalStatus,
-            position,
+            position: itemPosition,
             assigned_to_id: assigned_to_id || null,
             created_by_id: req.user.id
         };
@@ -309,5 +316,32 @@ exports.getHistory = async (req, res) => {
         res.json(history);
     } catch (err) {
         res.status(500).json({ message: "Error retrieving history", error: err.message });
+    }
+};
+
+// Reordering
+exports.reorderBacklogItem = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newPosition } = req.body;
+
+        const [items] = await BacklogItem.findById(id);
+        if (items.length === 0) return res.status(404).json({ message: "Item not found" });
+        const item = items[0];
+
+        // Check if Product Owner
+        const [member] = await BacklogItem.isMember(item.project_id, req.user.id);
+        if (member.length === 0 || member[0].role !== 'PRODUCT_OWNER') {
+            return res.status(403).json({ message: "Only Product Owner can reorder items" });
+        }
+
+        if (item.sprint_id) {
+            return res.status(400).json({ message: "Cannot reorder items assigned to sprints" });
+        }
+
+        await BacklogItem.reorderBacklog(item.project_id, id, newPosition);
+        res.json({ message: "Item reordered successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error reordering item", error: err.message });
     }
 };

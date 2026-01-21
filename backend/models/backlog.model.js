@@ -20,17 +20,61 @@ exports.findAllByProject = (projectId, filters = {}) => {
         sql += " AND assigned_to_id = ?";
         params.push(filters.assigned_to);
     }
+    if (filters.tags) {
+        sql += " AND JSON_CONTAINS(tags, JSON_QUOTE(?))";
+        params.push(filters.tags);
+    }
 
-    let orderBy = "priority DESC, created_at ASC";
+    let orderBy = "position ASC, priority DESC, created_at ASC";
     if (filters.sort === 'created_at') {
         orderBy = "created_at DESC";
     } else if (filters.sort === 'title') {
         orderBy = "title ASC";
+    } else if (filters.sort === 'story_points') {
+        orderBy = "story_points ASC";
+    } else if (filters.sort === 'status') {
+        orderBy = "status ASC";
+    } else if (filters.sort === 'priority') {
+        orderBy = "priority DESC";
     }
 
     sql += ` ORDER BY ${orderBy}`;
 
     return db.query(sql, params);
+};
+
+exports.getMaxBacklogPosition = (projectId) => {
+    return db.query(
+        "SELECT MAX(position) as maxPos FROM backlog_items WHERE project_id = ? AND sprint_id IS NULL AND isActive = 1",
+        [projectId]
+    );
+};
+
+exports.reorderBacklog = (projectId, itemId, newPosition) => {
+    // Get current position
+    const getCurrent = db.query("SELECT position FROM backlog_items WHERE id = ?", [itemId]);
+    return getCurrent.then(([currentRows]) => {
+        const currentPos = currentRows[0].position;
+        if (currentPos === newPosition) return Promise.resolve();
+
+        if (currentPos < newPosition) {
+            // Moving down: shift items up
+            return db.query(
+                "UPDATE backlog_items SET position = position - 1 WHERE project_id = ? AND sprint_id IS NULL AND isActive = 1 AND position > ? AND position <= ?",
+                [projectId, currentPos, newPosition]
+            ).then(() => {
+                return db.query("UPDATE backlog_items SET position = ? WHERE id = ?", [newPosition, itemId]);
+            });
+        } else {
+            // Moving up: shift items down
+            return db.query(
+                "UPDATE backlog_items SET position = position + 1 WHERE project_id = ? AND sprint_id IS NULL AND isActive = 1 AND position >= ? AND position < ?",
+                [projectId, newPosition, currentPos]
+            ).then(() => {
+                return db.query("UPDATE backlog_items SET position = ? WHERE id = ?", [newPosition, itemId]);
+            });
+        }
+    });
 };
 
 exports.findById = (id) => {

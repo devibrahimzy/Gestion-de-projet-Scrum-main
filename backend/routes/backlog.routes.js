@@ -7,6 +7,7 @@ router.get("/:id", auth, backlogController.getBacklogItemById);
 router.get("/sprint/:sprintId", auth, backlogController.getBacklogBySprint);
 router.post("/", auth, backlogController.createBacklogItem);
 router.put("/:id", auth, backlogController.updateBacklogItem);
+router.put("/:id/reorder", auth, backlogController.reorderBacklogItem);
 router.patch("/:id/assign", auth, backlogController.assignMember);
 router.delete("/:id", auth, backlogController.deleteBacklogItem);
 
