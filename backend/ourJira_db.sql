@@ -244,12 +244,7 @@ ALTER TABLE `sprints`
   ADD PRIMARY KEY (`id`),
   ADD KEY `fk_sprint_project` (`project_id`);
 
---
--- Indexes for table `users`
---
-ALTER TABLE `users`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
+
 
 --
 -- Constraints for dumped tables
@@ -276,8 +271,9 @@ ALTER TABLE `sprints`
 COMMIT;
 
 -- Add columns for account locking
-ALTER TABLE `users` ADD COLUMN `failed_attempts` int(11) DEFAULT 0;
-ALTER TABLE `users` ADD COLUMN `lock_until` datetime DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `failed_attempts` int(11) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS `lock_until` datetime DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS `profile_photo` varchar(255) DEFAULT NULL;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

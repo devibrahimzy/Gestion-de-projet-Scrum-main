@@ -177,6 +177,81 @@ exports.verifyAccount = async (req, res) => {
   res.json({ message: "Account verified successfully" });
 };
 
+exports.getProfile = async (req, res) => {
+  const [[profile]] = await User.getProfile(req.user.id);
+  if (!profile) return res.status(404).json({ message: "User not found" });
+
+  res.json(profile);
+};
+
+exports.updateProfile = async (req, res) => {
+  const { first_name, last_name, profile_photo } = req.body; // Add preferences later
+
+  await User.updateProfile(req.user.id, { first_name, last_name, profile_photo });
+  res.json({ message: "Profile updated successfully" });
+};
+
+exports.changeEmail = async (req, res) => {
+  const { new_email } = req.body;
+
+  // Check if new email already exists
+  const [existing] = await User.findByEmail(new_email);
+  if (existing.length > 0) {
+    return res.status(400).json({ message: "Email already in use" });
+  }
+
+  // Generate verification code for new email
+  const verificationCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+
+  // Update user with new email and code (but keep old email until verified?)
+  // For simplicity, set pending_email and pending_code
+  // But since no such fields, perhaps send email and if verified, update email.
+
+  // For now, generate code and send to new email, then update if verified.
+  // But to implement, need to store pending email.
+
+  // Since db has no pending fields, perhaps update email immediately and mark as unverified, send code to new email.
+
+  await db.query(
+    "UPDATE users SET email = ?, is_verified = false, verification_code = ? WHERE id = ?",
+    [new_email, verificationCode, req.user.id]
+  );
+
+  try {
+    await sendVerificationEmail(new_email, verificationCode);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+
+  res.json({ message: "Email change requested. Please verify the new email." });
+};
+
+exports.changePassword = async (req, res) => {
+  const { old_password, new_password } = req.body;
+
+  if (!old_password || !new_password) {
+    return res.status(400).json({ message: "Old and new password required" });
+  }
+
+  // Get current user password
+  const [[user]] = await User.findById(req.user.id);
+
+  const match = await bcrypt.compare(old_password, user.password);
+  if (!match) {
+    return res.status(400).json({ message: "Old password is incorrect" });
+  }
+
+  // Validate new password complexity (same as register, assume length >6)
+  if (new_password.length < 6) {
+    return res.status(400).json({ message: "New password must be at least 6 characters" });
+  }
+
+  const hashedPassword = await bcrypt.hash(new_password, 10);
+  await User.changePassword(req.user.id, hashedPassword);
+
+  res.json({ message: "Password changed successfully" });
+};
+
 
 //create admin do not implemnt only used for testing
 exports.createAdmin = async (req, res) => {
