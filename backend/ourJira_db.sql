@@ -294,6 +294,7 @@ CREATE TABLE `sprints` (
   `start_date` date DEFAULT NULL,
   `end_date` date DEFAULT NULL,
   `status` enum('PLANNING','ACTIVE','COMPLETED') DEFAULT 'PLANNING',
+  `objective` text DEFAULT NULL,
   `planned_velocity` int(11) DEFAULT 0,
   `actual_velocity` int(11) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -432,6 +433,9 @@ ADD COLUMN IF NOT EXISTS `profile_photo` varchar(255) DEFAULT NULL;
 ALTER TABLE `projects` ADD COLUMN IF NOT EXISTS `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
 ADD COLUMN IF NOT EXISTS `sprint_duration` int(11) DEFAULT 2,
 ADD COLUMN IF NOT EXISTS `objectives` text DEFAULT NULL;
+
+-- Add objective to sprints
+ALTER TABLE `sprints` ADD COLUMN IF NOT EXISTS `objective` text DEFAULT NULL;
 
 -- Update backlog_items for enhanced features
 ALTER TABLE `backlog_items` MODIFY COLUMN `type` enum('USER_STORY','BUG','TECHNICAL_TASK','IMPROVEMENT') DEFAULT 'USER_STORY';

@@ -22,7 +22,7 @@ exports.getSprintsByProject = async (req, res) => {
 
 exports.createSprint = async (req, res) => {
     try {
-        const { project_id, name, start_date, end_date, planned_velocity } = req.body;
+        const { project_id, name, objective, start_date, end_date, planned_velocity } = req.body;
 
         if (!project_id || !name) {
             return res.status(400).json({ message: "Project ID and Name are required" });
@@ -33,14 +33,22 @@ exports.createSprint = async (req, res) => {
             return res.status(403).json({ message: "Only Scrum Master can create sprint" });
         }
 
+        // Calculate planned velocity if not provided
+        let finalVelocity = planned_velocity;
+        if (!finalVelocity) {
+            const [avgResult] = await Sprint.getAverageVelocity(project_id);
+            finalVelocity = avgResult[0].avg_velocity ? Math.round(avgResult[0].avg_velocity) : 0;
+        }
+
         const sprint = {
             id: uuid(),
             project_id,
             name,
+            objective,
             start_date,
             end_date,
             status: "PLANNING",
-            planned_velocity,
+            planned_velocity: finalVelocity,
             isActive: 1
         };
 
@@ -82,6 +90,9 @@ exports.activateSprint = async (req, res) => {
 
         // Passer le sprint à ACTIVE
         await Sprint.updateStatus(sprintId, 'ACTIVE');
+
+        // Update project status to ACTIVE
+        await Project.update(sprint.project_id, { status: 'ACTIVE' });
 
         res.json({ message: "Sprint activated successfully" });
     } catch (err) {
@@ -149,6 +160,93 @@ exports.deleteSprint = async (req, res) => {
 
     } catch (err) {
         res.status(500).json({ message: "Error deleting sprint", error: err.message });
+    }
+};
+
+exports.moveItemToSprint = async (req, res) => {
+    try {
+        const { sprintId } = req.params;
+        const { itemId } = req.body;
+
+        const [sprintRows] = await Sprint.findById(sprintId);
+        if (!sprintRows.length) return res.status(404).json({ message: "Sprint not found" });
+        const sprint = sprintRows[0];
+
+        const allowed = await isScrumMaster(sprint.project_id, req.user.id);
+        if (!allowed) {
+            return res.status(403).json({ message: "Only Scrum Master can manage sprint items" });
+        }
+
+        const [itemRows] = await BacklogItem.findById(itemId);
+        if (!itemRows.length) return res.status(404).json({ message: "Item not found" });
+        const item = itemRows[0];
+
+        if (item.sprint_id) {
+            return res.status(400).json({ message: "Item already assigned to a sprint" });
+        }
+
+        // Check capacity
+        const [sprintItems] = await BacklogItem.findAllBySprint(sprintId);
+        const currentPoints = sprintItems.reduce((sum, i) => sum + (i.story_points || 0), 0);
+        const newTotal = currentPoints + (item.story_points || 0);
+
+        let warning = null;
+        if (newTotal > sprint.planned_velocity) {
+            warning = `Adding this item will exceed sprint capacity (${newTotal}/${sprint.planned_velocity} story points)`;
+        }
+
+        // Move item
+        const position = sprintItems.length + 1;
+        await BacklogItem.update(itemId, {
+            sprint_id: sprintId,
+            status: 'TODO',
+            position
+        });
+
+        res.json({
+            message: "Item moved to sprint",
+            remaining_capacity: sprint.planned_velocity - newTotal,
+            warning
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Error moving item", error: err.message });
+    }
+};
+
+exports.removeItemFromSprint = async (req, res) => {
+    try {
+        const { sprintId, itemId } = req.params;
+
+        const [sprintRows] = await Sprint.findById(sprintId);
+        if (!sprintRows.length) return res.status(404).json({ message: "Sprint not found" });
+        const sprint = sprintRows[0];
+
+        const allowed = await isScrumMaster(sprint.project_id, req.user.id);
+        if (!allowed) {
+            return res.status(403).json({ message: "Only Scrum Master can manage sprint items" });
+        }
+
+        const [itemRows] = await BacklogItem.findById(itemId);
+        if (!itemRows.length) return res.status(404).json({ message: "Item not found" });
+        const item = itemRows[0];
+
+        if (item.sprint_id !== sprintId) {
+            return res.status(400).json({ message: "Item not in this sprint" });
+        }
+
+        // Remove from sprint
+        await BacklogItem.update(itemId, {
+            sprint_id: null,
+            status: 'BACKLOG',
+            position: 0
+        });
+
+        // Reorder remaining items
+        await BacklogItem.removeFromColumn(sprintId, 'TODO', item.position);
+
+        res.json({ message: "Item removed from sprint" });
+    } catch (err) {
+        res.status(500).json({ message: "Error removing item", error: err.message });
     }
 };
 

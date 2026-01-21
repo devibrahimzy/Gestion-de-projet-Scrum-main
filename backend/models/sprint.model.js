@@ -15,18 +15,18 @@ exports.findById = (id) => {
 };
 
 exports.create = (sprint) => {
-    const { id, project_id, name, start_date, end_date, status, planned_velocity, isActive } = sprint;
+    const { id, project_id, name, objective, start_date, end_date, status, planned_velocity, isActive } = sprint;
     return db.query(
-        "INSERT INTO sprints (id, project_id, name, start_date, end_date, status, planned_velocity, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, project_id, name, start_date, end_date, status || 'PLANNING', planned_velocity || 0, isActive !== undefined ? isActive : 1]
+        "INSERT INTO sprints (id, project_id, name, objective, start_date, end_date, status, planned_velocity, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, project_id, name, objective, start_date, end_date, status || 'PLANNING', planned_velocity || 0, isActive !== undefined ? isActive : 1]
     );
 };
 
 exports.update = (id, sprint) => {
-    const { name, start_date, end_date, status, planned_velocity, actual_velocity, isActive } = sprint;
+    const { name, objective, start_date, end_date, status, planned_velocity, actual_velocity, isActive } = sprint;
     return db.query(
-        "UPDATE sprints SET name = ?, start_date = ?, end_date = ?, status = ?, planned_velocity = ?, actual_velocity = ?, isActive = ? WHERE id = ?",
-        [name, start_date, end_date, status, planned_velocity, actual_velocity, isActive, id]
+        "UPDATE sprints SET name = ?, objective = ?, start_date = ?, end_date = ?, status = ?, planned_velocity = ?, actual_velocity = ?, isActive = ? WHERE id = ?",
+        [name, objective, start_date, end_date, status, planned_velocity, actual_velocity, isActive, id]
     );
 };
 
@@ -62,6 +62,13 @@ exports.softDelete = (id) => {
     return db.query(
         "UPDATE sprints SET isActive = 0 WHERE id = ?",
         [id]
+    );
+};
+
+exports.getAverageVelocity = (projectId) => {
+    return db.query(
+        "SELECT AVG(actual_velocity) as avg_velocity FROM sprints WHERE project_id = ? AND status = 'COMPLETED' AND actual_velocity > 0",
+        [projectId]
     );
 };
 

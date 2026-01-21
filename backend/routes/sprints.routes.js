@@ -8,6 +8,8 @@ router.put("/:id", auth, sprintController.updateSprint);
 router.delete("/:id", auth, sprintController.deleteSprint);
 router.put("/:id/activate", auth, sprintController.activateSprint);
 router.put("/:id/complete", auth, sprintController.completeSprint);
+router.post("/:sprintId/items", auth, sprintController.moveItemToSprint);
+router.delete("/:sprintId/items/:itemId", auth, sprintController.removeItemFromSprint);
 
 
 module.exports = router;
