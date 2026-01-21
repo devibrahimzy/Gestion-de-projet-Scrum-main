@@ -123,6 +123,58 @@ ALTER TABLE `backlog_attachments`
   ADD CONSTRAINT `fk_attachment_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Table structure for table `kanban_columns`
+--
+
+CREATE TABLE `kanban_columns` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `project_id` char(36) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `position` int(11) NOT NULL DEFAULT 0,
+  `wip_limit` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `kanban_columns`
+--
+ALTER TABLE `kanban_columns`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_kanban_project` (`project_id`);
+
+--
+-- Constraints for table `kanban_columns`
+--
+ALTER TABLE `kanban_columns`
+  ADD CONSTRAINT `fk_kanban_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
+
+--
+-- Table structure for table `burndown_data`
+--
+
+CREATE TABLE `burndown_data` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `sprint_id` char(36) NOT NULL,
+  `date` date NOT NULL,
+  `remaining_story_points` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `burndown_data`
+--
+ALTER TABLE `burndown_data`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_burndown` (`sprint_id`,`date`),
+  ADD KEY `fk_burndown_sprint` (`sprint_id`);
+
+--
+-- Constraints for table `burndown_data`
+--
+ALTER TABLE `burndown_data`
+  ADD CONSTRAINT `fk_burndown_sprint` FOREIGN KEY (`sprint_id`) REFERENCES `sprints` (`id`) ON DELETE CASCADE;
+
+--
 -- Table structure for table `backlog_history`
 --
 
@@ -436,6 +488,14 @@ ADD COLUMN IF NOT EXISTS `objectives` text DEFAULT NULL;
 
 -- Add objective to sprints
 ALTER TABLE `sprints` ADD COLUMN IF NOT EXISTS `objective` text DEFAULT NULL;
+
+-- Insert default Kanban columns for existing projects
+INSERT IGNORE INTO kanban_columns (id, project_id, name, position, wip_limit)
+SELECT uuid(), p.id, 'To-Do', 1, NULL FROM projects p
+UNION ALL
+SELECT uuid(), p.id, 'In Progress', 2, NULL FROM projects p
+UNION ALL
+SELECT uuid(), p.id, 'Done', 3, NULL FROM projects p;
 
 -- Update backlog_items for enhanced features
 ALTER TABLE `backlog_items` MODIFY COLUMN `type` enum('USER_STORY','BUG','TECHNICAL_TASK','IMPROVEMENT') DEFAULT 'USER_STORY';

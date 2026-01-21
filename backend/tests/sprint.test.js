@@ -85,9 +85,12 @@ describe('Sprint Controller', () => {
   describe('PUT /api/sprints/:id/complete', () => {
     it('should complete sprint', async () => {
       db.query
+        .mockResolvedValueOnce([[{ id: 'sprint-1', project_id: 'proj-1' }], {}]) // findById
+        .mockResolvedValueOnce([[{ role: 'SCRUM_MASTER' }], {}]) // isScrumMaster
         .mockResolvedValueOnce([[{ status: 'DONE' }], {}]) // findAllBySprint
         .mockResolvedValueOnce([[{ total: 25 }], {}]) // sumStoryPointsBySprint
-        .mockResolvedValueOnce([[], {}]); // updatePartial
+        .mockResolvedValueOnce([[], {}]) // updatePartial
+        .mockResolvedValueOnce([[], {}]); // update project
 
       const response = await request(app)
         .put('/api/sprints/sprint-1/complete')
@@ -95,6 +98,55 @@ describe('Sprint Controller', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.actual_velocity).toBe(25);
+    });
+  });
+
+  describe('GET /api/sprints/active', () => {
+    it('should return active sprint with capacity metrics', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 'sprint-1', name: 'Sprint 1', status: 'ACTIVE', planned_velocity: 30 }], {}]) // findAllByProject
+        .mockResolvedValueOnce([[{ id: 'item-1', status: 'DONE', story_points: 10 }, { id: 'item-2', status: 'TODO', story_points: 5 }], {}]); // findAllBySprint
+
+      const response = await request(app)
+        .get('/api/sprints/active?projectId=proj-1')
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(response.status).toBe(200);
+      expect(response.body.capacity.total).toBe(30);
+      expect(response.body.capacity.completed).toBe(10);
+    });
+  });
+
+  describe('GET /api/sprints/:id/burndown', () => {
+    it('should return burndown chart data', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 'sprint-1', project_id: 'proj-1', start_date: '2024-01-01', end_date: '2024-01-14', planned_velocity: 30 }], {}]) // findById
+        .mockResolvedValueOnce([[{ role: 'TEAM_MEMBER' }], {}]) // isMember
+        .mockResolvedValueOnce([[{ date: '2024-01-01', remaining_story_points: 30 }], {}]); // getBurndownData
+
+      const response = await request(app)
+        .get('/api/sprints/sprint-1/burndown')
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('ideal_line');
+      expect(response.body).toHaveProperty('actual_line');
+    });
+  });
+
+  describe('GET /api/sprints/velocity-chart', () => {
+    it('should return velocity chart data', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ role: 'TEAM_MEMBER' }], {}]) // isMember
+        .mockResolvedValueOnce([[{ name: 'Sprint 1', planned_velocity: 30, actual_velocity: 25 }], {}]); // sprints
+
+      const response = await request(app)
+        .get('/api/sprints/velocity-chart?projectId=proj-1')
+        .set('Authorization', 'Bearer valid-token');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('sprints');
+      expect(response.body).toHaveProperty('moving_average');
     });
   });
 });

@@ -16,9 +16,38 @@ exports.getKanbanBoard = async (req, res) => {
         const [member] = await BacklogItem.isMember(projectId, req.user.id);
         if (member.length === 0) return res.status(403).json({ message: "Unauthorized: You are not a member of this project" });
 
+        // Get custom columns
+        const [columns] = await db.query(
+            "SELECT * FROM kanban_columns WHERE project_id = ? ORDER BY position",
+            [projectId]
+        );
+
+        // If no columns, use default status mapping
+        const boardColumns = columns.length > 0 ? columns : [
+            { name: 'To-Do', status: 'TODO' },
+            { name: 'In Progress', status: 'IN_PROGRESS' },
+            { name: 'Done', status: 'DONE' }
+        ];
+
         const { assigned_to_id, type } = req.query;
         const [items] = await BacklogItem.findAllBySprint(sprintId, { assigned_to_id, type });
-        res.json(items);
+
+        // Group items by column
+        const board = boardColumns.map(col => ({
+            ...col,
+            items: items.filter(item => item.status === (col.status || col.name.replace(' ', '_').toUpperCase())),
+            item_count: 0 // Will calculate
+        }));
+
+        board.forEach(col => {
+            col.item_count = col.items.length;
+            // Check WIP limit
+            if (col.wip_limit && col.item_count > col.wip_limit) {
+                col.warning = `WIP limit exceeded (${col.item_count}/${col.wip_limit})`;
+            }
+        });
+
+        res.json({ columns: board, total_items: items.length });
     } catch (err) {
         res.status(500).json({ message: "Error retrieving Kanban board", error: err.message });
     }
@@ -128,5 +157,97 @@ exports.moveKanbanItem = async (req, res) => {
         res.status(500).json({ message: "Error moving item", error: err.message });
     } finally {
         connection.release();
+    }
+};
+
+// Column management
+exports.getKanbanColumns = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+
+        const [member] = await BacklogItem.isMember(projectId, req.user.id);
+        if (member.length === 0) return res.status(403).json({ message: "Unauthorized" });
+
+        const [columns] = await db.query(
+            "SELECT * FROM kanban_columns WHERE project_id = ? ORDER BY position",
+            [projectId]
+        );
+
+        res.json(columns);
+    } catch (err) {
+        res.status(500).json({ message: "Error retrieving columns", error: err.message });
+    }
+};
+
+exports.addKanbanColumn = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const { name, wip_limit } = req.body;
+
+        const [member] = await BacklogItem.isMember(projectId, req.user.id);
+        if (member.length === 0 || member[0].role !== 'PRODUCT_OWNER') {
+            return res.status(403).json({ message: "Only Product Owner can manage columns" });
+        }
+
+        const [[{ maxPos }]] = await db.query(
+            "SELECT MAX(position) as maxPos FROM kanban_columns WHERE project_id = ?",
+            [projectId]
+        );
+
+        await db.query(
+            "INSERT INTO kanban_columns (id, project_id, name, position, wip_limit) VALUES (?, ?, ?, ?, ?)",
+            [uuid(), projectId, name, (maxPos || 0) + 1, wip_limit || null]
+        );
+
+        res.status(201).json({ message: "Column added" });
+    } catch (err) {
+        res.status(500).json({ message: "Error adding column", error: err.message });
+    }
+};
+
+exports.updateKanbanColumn = async (req, res) => {
+    try {
+        const { columnId } = req.params;
+        const { name, wip_limit } = req.body;
+
+        // Check if column has items
+        const [[{ count }]] = await db.query(
+            "SELECT COUNT(*) as count FROM backlog_items bi JOIN kanban_columns kc ON bi.status = REPLACE(UPPER(kc.name), ' ', '_') WHERE kc.id = ?",
+            [columnId]
+        );
+
+        if (count > 0) {
+            return res.status(400).json({ message: "Cannot modify column with items" });
+        }
+
+        await db.query(
+            "UPDATE kanban_columns SET name = ?, wip_limit = ? WHERE id = ?",
+            [name, wip_limit, columnId]
+        );
+
+        res.json({ message: "Column updated" });
+    } catch (err) {
+        res.status(500).json({ message: "Error updating column", error: err.message });
+    }
+};
+
+exports.deleteKanbanColumn = async (req, res) => {
+    try {
+        const { columnId } = req.params;
+
+        // Check if column has items
+        const [[{ count }]] = await db.query(
+            "SELECT COUNT(*) as count FROM backlog_items bi JOIN kanban_columns kc ON bi.status = REPLACE(UPPER(kc.name), ' ', '_') WHERE kc.id = ?",
+            [columnId]
+        );
+
+        if (count > 0) {
+            return res.status(400).json({ message: "Cannot delete column with items" });
+        }
+
+        await db.query("DELETE FROM kanban_columns WHERE id = ?", [columnId]);
+        res.json({ message: "Column deleted" });
+    } catch (err) {
+        res.status(500).json({ message: "Error deleting column", error: err.message });
     }
 };
