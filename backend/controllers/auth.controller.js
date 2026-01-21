@@ -28,13 +28,37 @@ exports.login = async (req, res) => {
   const [[user]] = await User.findByEmail(email);
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
+  // Check if account is locked
+  if (user.lock_until && new Date(user.lock_until) > new Date()) {
+    return res.status(423).json({ message: "Account is temporarily locked due to multiple failed login attempts" });
+  }
+
   const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ message: "Invalid credentials" });
+  if (!match) {
+    // Increment failed attempts
+    await User.incrementFailedAttempts(email);
+    const [updatedUser] = await User.findByEmail(email);
+    const failedAttempts = updatedUser[0].failed_attempts;
+
+    if (failedAttempts >= 3) {
+      // Lock account for 15 minutes
+      const lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      await User.lockAccount(email, lockUntil);
+      return res.status(423).json({ message: "Account locked due to multiple failed login attempts. Try again in 15 minutes." });
+    }
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  // Successful login: reset failed attempts
+  await User.resetFailedAttempts(email);
+
+  // Update last login
+  await User.updateLastLogin(user.id);
 
   const token = jwt.sign(
     { id: user.id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "1d" }
+    { expiresIn: "24h" } // Explicitly set to 24 hours
   );
 
   res.json({

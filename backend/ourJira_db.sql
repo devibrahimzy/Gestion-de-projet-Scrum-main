@@ -1,0 +1,284 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: localhost
+-- Generation Time: Jan 17, 2026 at 02:24 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `ourJira_db`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `backlog_items`
+--
+
+CREATE TABLE `backlog_items` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) DEFAULT NULL,
+  `sprint_id` char(36) DEFAULT NULL,
+  `title` varchar(300) NOT NULL,
+  `description` text DEFAULT NULL,
+  `type` enum('USER_STORY','BUG','TASK','SPIKE') DEFAULT 'USER_STORY',
+  `story_points` int(11) DEFAULT 0,
+  `priority` int(11) DEFAULT 0,
+  `status` enum('BACKLOG','TODO','IN_PROGRESS','DONE') DEFAULT 'BACKLOG',
+  `position` int(11) NOT NULL DEFAULT 0,
+  `assigned_to_id` char(36) DEFAULT NULL,
+  `created_by_id` char(36) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `isActive` tinyint(1) DEFAULT 1,
+  `started_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `backlog_item_comments`
+--
+
+CREATE TABLE `backlog_item_comments` (
+  `id` char(36) NOT NULL,
+  `backlog_item_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `content` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `isActive` tinyint(1) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `projects`
+--
+
+CREATE TABLE `projects` (
+  `id` char(36) NOT NULL,
+  `name` varchar(200) NOT NULL,
+  `description` text DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `status` enum('PLANNING','ACTIVE','COMPLETED') DEFAULT 'PLANNING',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `isActive` tinyint(1) DEFAULT 1,
+  `created_by` char(36) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `project_members`
+--
+
+CREATE TABLE `project_members` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `role` enum('PRODUCT_OWNER','SCRUM_MASTER','TEAM_MEMBER') NOT NULL,
+  `joined_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `retrospectives`
+--
+
+CREATE TABLE `retrospectives` (
+  `id` char(36) NOT NULL,
+  `sprint_id` char(36) DEFAULT NULL,
+  `date` date DEFAULT NULL,
+  `status` enum('DRAFT','PUBLISHED') DEFAULT 'DRAFT',
+  `facilitator_id` char(36) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `retro_items`
+--
+
+CREATE TABLE `retro_items` (
+  `id` char(36) NOT NULL,
+  `retrospective_id` char(36) DEFAULT NULL,
+  `category` enum('POSITIVE','IMPROVE','ACTION') DEFAULT 'IMPROVE',
+  `text` text DEFAULT NULL,
+  `votes` int(11) DEFAULT 0,
+  `author_id` char(36) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_completed` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `sprints`
+--
+
+CREATE TABLE `sprints` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) DEFAULT NULL,
+  `name` varchar(100) NOT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `status` enum('PLANNING','ACTIVE','COMPLETED') DEFAULT 'PLANNING',
+  `planned_velocity` int(11) DEFAULT 0,
+  `actual_velocity` int(11) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `isActive` tinyint(1) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` CHAR(36) NOT NULL DEFAULT (UUID()),
+
+  -- Basic identity
+  `email` VARCHAR(255) NOT NULL UNIQUE,
+  `phone` VARCHAR(20) DEFAULT NULL,
+  `password` VARCHAR(255) NOT NULL,
+
+  `first_name` VARCHAR(100) NOT NULL,
+  `last_name` VARCHAR(100) NOT NULL,
+
+  -- Address
+  `address_line` VARCHAR(255) DEFAULT NULL,
+  `city` VARCHAR(100) DEFAULT NULL,
+  `country` VARCHAR(100) DEFAULT NULL,
+
+  -- Role & status
+  `role` ENUM('ADMIN','PRODUCT_OWNER','SCRUM_MASTER','TEAM_MEMBER')
+    NOT NULL DEFAULT 'TEAM_MEMBER',
+
+  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Verification (reduced)
+  `is_verified` BOOLEAN NOT NULL DEFAULT FALSE,
+  `verification_code` VARCHAR(10) DEFAULT NULL,
+
+  -- Password reset
+  `reset_token` VARCHAR(255) DEFAULT NULL,
+  `reset_token_expires` TIMESTAMP NULL DEFAULT NULL,
+
+  -- Account locking
+  `failed_attempts` INT DEFAULT 0,
+  `lock_until` TIMESTAMP NULL DEFAULT NULL,
+
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `backlog_items`
+--
+ALTER TABLE `backlog_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_backlog_project` (`project_id`),
+  ADD KEY `fk_backlog_assigned` (`assigned_to_id`);
+
+--
+-- Indexes for table `backlog_item_comments`
+--
+ALTER TABLE `backlog_item_comments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_comment_backlog` (`backlog_item_id`);
+
+--
+-- Indexes for table `projects`
+--
+ALTER TABLE `projects`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `project_members`
+--
+ALTER TABLE `project_members`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_member` (`project_id`,`user_id`);
+
+--
+-- Indexes for table `retrospectives`
+--
+ALTER TABLE `retrospectives`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `retro_items`
+--
+ALTER TABLE `retro_items`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `sprints`
+--
+ALTER TABLE `sprints`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_sprint_project` (`project_id`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `email` (`email`);
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `backlog_items`
+--
+ALTER TABLE `backlog_items`
+  ADD CONSTRAINT `fk_backlog_assigned` FOREIGN KEY (`assigned_to_id`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `fk_backlog_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`);
+
+--
+-- Constraints for table `backlog_item_comments`
+--
+ALTER TABLE `backlog_item_comments`
+  ADD CONSTRAINT `fk_comment_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `sprints`
+--
+ALTER TABLE `sprints`
+  ADD CONSTRAINT `fk_sprint_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`);
+COMMIT;
+
+-- Add columns for account locking
+ALTER TABLE `users` ADD COLUMN `failed_attempts` int(11) DEFAULT 0;
+ALTER TABLE `users` ADD COLUMN `lock_until` datetime DEFAULT NULL;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

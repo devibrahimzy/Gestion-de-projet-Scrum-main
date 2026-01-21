@@ -11,3 +11,31 @@ exports.create = (user) => {
         [id, email, password, first_name, last_name, role]
     );
 };
+
+exports.incrementFailedAttempts = (email) => {
+    return db.query(
+        "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?",
+        [email]
+    );
+};
+
+exports.resetFailedAttempts = (email) => {
+    return db.query(
+        "UPDATE users SET failed_attempts = 0, lock_until = NULL WHERE email = ?",
+        [email]
+    );
+};
+
+exports.lockAccount = (email, lockUntil) => {
+    return db.query(
+        "UPDATE users SET lock_until = ? WHERE email = ?",
+        [lockUntil, email]
+    );
+};
+
+exports.updateLastLogin = (id) => {
+    return db.query(
+        "UPDATE users SET lastLogin = NOW() WHERE id = ?",
+        [id]
+    );
+};
