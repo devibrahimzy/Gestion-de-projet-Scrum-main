@@ -10,4 +10,18 @@ router.put("/:id", auth, backlogController.updateBacklogItem);
 router.patch("/:id/assign", auth, backlogController.assignMember);
 router.delete("/:id", auth, backlogController.deleteBacklogItem);
 
+// Acceptance Criteria
+router.get("/:id/criteria", auth, backlogController.getAcceptanceCriteria);
+router.post("/:id/criteria", auth, backlogController.addAcceptanceCriterion);
+router.put("/:id/criteria/:criterionId", auth, backlogController.updateAcceptanceCriterion);
+router.delete("/:id/criteria/:criterionId", auth, backlogController.deleteAcceptanceCriterion);
+
+// Attachments
+router.get("/:id/attachments", auth, backlogController.getAttachments);
+router.post("/:id/attachments", auth, backlogController.uploadAttachment);
+router.delete("/:id/attachments/:attachmentId", auth, backlogController.deleteAttachment);
+
+// History
+router.get("/:id/history", auth, backlogController.getHistory);
+
 module.exports = router;

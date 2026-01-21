@@ -33,9 +33,10 @@ CREATE TABLE `backlog_items` (
   `sprint_id` char(36) DEFAULT NULL,
   `title` varchar(300) NOT NULL,
   `description` text DEFAULT NULL,
-  `type` enum('USER_STORY','BUG','TASK','SPIKE') DEFAULT 'USER_STORY',
+  `type` enum('USER_STORY','BUG','TECHNICAL_TASK','IMPROVEMENT') DEFAULT 'USER_STORY',
   `story_points` int(11) DEFAULT 0,
-  `priority` int(11) DEFAULT 0,
+  `priority` enum('CRITICAL','HIGH','MEDIUM','LOW') DEFAULT 'MEDIUM',
+  `tags` text DEFAULT NULL,
   `status` enum('BACKLOG','TODO','IN_PROGRESS','DONE') DEFAULT 'BACKLOG',
   `position` int(11) NOT NULL DEFAULT 0,
   `assigned_to_id` char(36) DEFAULT NULL,
@@ -63,6 +64,93 @@ CREATE TABLE `backlog_item_comments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
+
+--
+-- Table structure for table `backlog_acceptance_criteria`
+--
+
+CREATE TABLE `backlog_acceptance_criteria` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `backlog_item_id` char(36) NOT NULL,
+  `description` text NOT NULL,
+  `is_completed` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `backlog_acceptance_criteria`
+--
+ALTER TABLE `backlog_acceptance_criteria`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_criteria_backlog` (`backlog_item_id`);
+
+--
+-- Constraints for table `backlog_acceptance_criteria`
+--
+ALTER TABLE `backlog_acceptance_criteria`
+  ADD CONSTRAINT `fk_criteria_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE;
+
+--
+-- Table structure for table `backlog_attachments`
+--
+
+CREATE TABLE `backlog_attachments` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `backlog_item_id` char(36) NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  `original_name` varchar(255) NOT NULL,
+  `mime_type` varchar(100) NOT NULL,
+  `size` int(11) NOT NULL,
+  `path` varchar(500) NOT NULL,
+  `uploaded_by` char(36) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `backlog_attachments`
+--
+ALTER TABLE `backlog_attachments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_attachment_backlog` (`backlog_item_id`),
+  ADD KEY `fk_attachment_user` (`uploaded_by`);
+
+--
+-- Constraints for table `backlog_attachments`
+--
+ALTER TABLE `backlog_attachments`
+  ADD CONSTRAINT `fk_attachment_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_attachment_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Table structure for table `backlog_history`
+--
+
+CREATE TABLE `backlog_history` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `backlog_item_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `action` varchar(50) NOT NULL,
+  `field_changed` varchar(100) DEFAULT NULL,
+  `old_value` text DEFAULT NULL,
+  `new_value` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `backlog_history`
+--
+ALTER TABLE `backlog_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_history_backlog` (`backlog_item_id`),
+  ADD KEY `fk_history_user` (`user_id`);
+
+--
+-- Constraints for table `backlog_history`
+--
+ALTER TABLE `backlog_history`
+  ADD CONSTRAINT `fk_history_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_history_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `project_invitations`
@@ -344,6 +432,11 @@ ADD COLUMN IF NOT EXISTS `profile_photo` varchar(255) DEFAULT NULL;
 ALTER TABLE `projects` ADD COLUMN IF NOT EXISTS `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
 ADD COLUMN IF NOT EXISTS `sprint_duration` int(11) DEFAULT 2,
 ADD COLUMN IF NOT EXISTS `objectives` text DEFAULT NULL;
+
+-- Update backlog_items for enhanced features
+ALTER TABLE `backlog_items` MODIFY COLUMN `type` enum('USER_STORY','BUG','TECHNICAL_TASK','IMPROVEMENT') DEFAULT 'USER_STORY';
+ALTER TABLE `backlog_items` MODIFY COLUMN `priority` enum('CRITICAL','HIGH','MEDIUM','LOW') DEFAULT 'MEDIUM';
+ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `tags` text DEFAULT NULL;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

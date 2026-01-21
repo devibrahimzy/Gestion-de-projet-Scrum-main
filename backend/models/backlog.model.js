@@ -1,12 +1,36 @@
 const db = require("../config/database");
 
-exports.findAllByProject = (projectId) => {
-    return db.query(
-        `SELECT * FROM backlog_items
-         WHERE project_id = ? AND isActive = 1
-         ORDER BY priority DESC, created_at ASC`,
-        [projectId]
-    );
+exports.findAllByProject = (projectId, filters = {}) => {
+    let sql = "SELECT * FROM backlog_items WHERE project_id = ? AND isActive = 1";
+    const params = [projectId];
+
+    if (filters.status) {
+        sql += " AND status = ?";
+        params.push(filters.status);
+    }
+    if (filters.priority) {
+        sql += " AND priority = ?";
+        params.push(filters.priority);
+    }
+    if (filters.type) {
+        sql += " AND type = ?";
+        params.push(filters.type);
+    }
+    if (filters.assigned_to) {
+        sql += " AND assigned_to_id = ?";
+        params.push(filters.assigned_to);
+    }
+
+    let orderBy = "priority DESC, created_at ASC";
+    if (filters.sort === 'created_at') {
+        orderBy = "created_at DESC";
+    } else if (filters.sort === 'title') {
+        orderBy = "title ASC";
+    }
+
+    sql += ` ORDER BY ${orderBy}`;
+
+    return db.query(sql, params);
 };
 
 exports.findById = (id) => {
@@ -39,21 +63,24 @@ exports.getMaxPosition = (sprintId, status) => {
 };
 
 exports.create = (item) => {
-    const { id, project_id, sprint_id, title, description, type, story_points, priority, status, position, assigned_to_id, created_by_id } = item;
+    const { id, project_id, sprint_id, title, description, type, story_points, priority, tags, status, position, assigned_to_id, created_by_id } = item;
     return db.query(
-        "INSERT INTO backlog_items (id, project_id, sprint_id, title, description, type, story_points, priority, status, position, assigned_to_id, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, project_id, sprint_id, title, description, type || 'USER_STORY', story_points || 0, priority || 0, status || 'BACKLOG', position || 0, assigned_to_id, created_by_id]
+        "INSERT INTO backlog_items (id, project_id, sprint_id, title, description, type, story_points, priority, tags, status, position, assigned_to_id, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, project_id, sprint_id, title, description, type || 'USER_STORY', story_points || 0, priority || 'MEDIUM', tags ? JSON.stringify(tags) : null, status || 'BACKLOG', position || 0, assigned_to_id, created_by_id]
     );
 };
 
-exports.update = (id, data) => {
+exports.update = (id, data, userId) => {
     const fields = [];
     const values = [];
+
+    // Get current item for logging
+    const currentPromise = db.query("SELECT * FROM backlog_items WHERE id = ?", [id]);
 
     for (const key in data) {
         if (data[key] !== undefined) {
             fields.push(`${key} = ?`);
-            values.push(data[key]);
+            values.push(key === 'tags' ? JSON.stringify(data[key]) : data[key]);
         }
     }
 
@@ -61,10 +88,23 @@ exports.update = (id, data) => {
 
     values.push(id);
 
-    return db.query(
-        `UPDATE backlog_items SET ${fields.join(", ")} WHERE id = ?`,
+    const updatePromise = db.query(
+        `UPDATE backlog_items SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?`,
         values
     );
+
+    return Promise.all([currentPromise, updatePromise]).then(([currentResult, updateResult]) => {
+        const [currentRows] = currentResult;
+        if (currentRows.length > 0 && userId) {
+            const current = currentRows[0];
+            for (const key in data) {
+                if (data[key] !== undefined && JSON.stringify(data[key]) !== JSON.stringify(current[key])) {
+                    exports.logChange(id, userId, 'UPDATE', key, current[key], data[key]);
+                }
+            }
+        }
+        return updateResult;
+    });
 };
 
 
@@ -135,4 +175,74 @@ exports.isMember = (projectId, userId) => {
         "SELECT * FROM project_members WHERE project_id = ? AND user_id = ?",
         [projectId, userId]
     );
+};
+
+exports.logChange = (backlogItemId, userId, action, fieldChanged, oldValue, newValue) => {
+    const { v4: uuid } = require('uuid');
+    return db.query(
+        "INSERT INTO backlog_history (id, backlog_item_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [uuid(), backlogItemId, userId, action, fieldChanged, oldValue, newValue]
+    );
+};
+
+// Acceptance Criteria
+exports.getAcceptanceCriteria = (backlogItemId) => {
+    return db.query("SELECT * FROM backlog_acceptance_criteria WHERE backlog_item_id = ? ORDER BY created_at", [backlogItemId]);
+};
+
+exports.addAcceptanceCriterion = (criterion) => {
+    const { id, backlog_item_id, description } = criterion;
+    const { v4: uuid } = require('uuid');
+    return db.query(
+        "INSERT INTO backlog_acceptance_criteria (id, backlog_item_id, description) VALUES (?, ?, ?)",
+        [uuid(), backlog_item_id, description]
+    );
+};
+
+exports.updateAcceptanceCriterion = (id, data) => {
+    const fields = [];
+    const values = [];
+    for (const key in data) {
+        if (data[key] !== undefined) {
+            fields.push(`${key} = ?`);
+            values.push(data[key]);
+        }
+    }
+    if (!fields.length) return Promise.resolve();
+    values.push(id);
+    return db.query(
+        `UPDATE backlog_acceptance_criteria SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?`,
+        values
+    );
+};
+
+exports.deleteAcceptanceCriterion = (id) => {
+    return db.query("DELETE FROM backlog_acceptance_criteria WHERE id = ?", [id]);
+};
+
+// Attachments
+exports.getAttachments = (backlogItemId) => {
+    return db.query("SELECT * FROM backlog_attachments WHERE backlog_item_id = ? ORDER BY created_at", [backlogItemId]);
+};
+
+exports.addAttachment = (attachment) => {
+    const { id, backlog_item_id, filename, original_name, mime_type, size, path, uploaded_by } = attachment;
+    const { v4: uuid } = require('uuid');
+    return db.query(
+        "INSERT INTO backlog_attachments (id, backlog_item_id, filename, original_name, mime_type, size, path, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [uuid(), backlog_item_id, filename, original_name, mime_type, size, path, uploaded_by]
+    );
+};
+
+exports.deleteAttachment = (id) => {
+    return db.query("DELETE FROM backlog_attachments WHERE id = ?", [id]);
+};
+
+// History
+exports.getHistory = (backlogItemId) => {
+    return db.query(`
+        SELECT bh.*, u.first_name, u.last_name FROM backlog_history bh
+        JOIN users u ON bh.user_id = u.id
+        WHERE bh.backlog_item_id = ? ORDER BY bh.created_at DESC
+    `, [backlogItemId]);
 };
