@@ -5,10 +5,10 @@ exports.findByEmail = (email) => {
 };
 
 exports.create = (user) => {
-    const { id, email, password, first_name, last_name, role } = user;
+    const { id, email, password, first_name, last_name, role, verification_code } = user;
     return db.query(
-        "INSERT INTO users (id, email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)",
-        [id, email, password, first_name, last_name, role]
+        "INSERT INTO users (id, email, password, first_name, last_name, role, verification_code) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [id, email, password, first_name, last_name, role, verification_code]
     );
 };
 
@@ -37,5 +37,12 @@ exports.updateLastLogin = (id) => {
     return db.query(
         "UPDATE users SET lastLogin = NOW() WHERE id = ?",
         [id]
+    );
+};
+
+exports.verifyAccount = (email, code) => {
+    return db.query(
+        "UPDATE users SET is_verified = true, verification_code = NULL WHERE email = ? AND verification_code = ?",
+        [email, code]
     );
 };

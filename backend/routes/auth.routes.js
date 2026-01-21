@@ -16,6 +16,7 @@ router.post("/logout", auth, controller.logout);
 router.post("/create-admin", controller.createAdmin);
 router.post("/forgot-password", controller.forgotPassword);
 router.post("/reset-password", controller.resetPassword);
+router.post("/verify", controller.verifyAccount);
 
 
 

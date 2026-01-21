@@ -1,14 +1,41 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { v4: uuid } = require("uuid");
+const nodemailer = require("nodemailer");
 const User = require("../models/user.model");
 const db = require("../config/database");
-const crypto = require("crypto"); 
+const crypto = require("crypto");
+
+// Email transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // or your email service
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendVerificationEmail = async (email, code) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Verify Your Account',
+    text: `Your verification code is: ${code}`,
+  };
+  await transporter.sendMail(mailOptions);
+};
 
 exports.register = async (req, res) => {
   const { email, password, first_name, last_name, role } = req.body;
 
+  // Check if email already exists
+  const [existingUser] = await User.findByEmail(email);
+  if (existingUser.length > 0) {
+    return res.status(400).json({ message: "Email already exists" });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
+  const verificationCode = crypto.randomBytes(3).toString('hex').toUpperCase(); // 6-character code
 
   await User.create({
     id: uuid(),
@@ -16,10 +43,19 @@ exports.register = async (req, res) => {
     password: hashedPassword,
     first_name,
     last_name,
-    role
+    role,
+    verification_code: verificationCode
   });
 
-  res.status(201).json({ message: "User created" });
+  // Send verification email
+  try {
+    await sendVerificationEmail(email, verificationCode);
+  } catch (error) {
+    console.error('Error sending email:', error);
+    // Still return success, but log error
+  }
+
+  res.status(201).json({ message: "User created. Please check your email for verification code." });
 };
 
 exports.login = async (req, res) => {
@@ -27,6 +63,11 @@ exports.login = async (req, res) => {
 
   const [[user]] = await User.findByEmail(email);
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
+  // Check if account is verified
+  if (!user.is_verified) {
+    return res.status(403).json({ message: "Account not verified. Please verify your email first." });
+  }
 
   // Check if account is locked
   if (user.lock_until && new Date(user.lock_until) > new Date()) {
@@ -119,6 +160,21 @@ exports.resetPassword = async (req, res) => {
   );
 
   res.json({ message: "Password reset successfully" });
+};
+
+exports.verifyAccount = async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ message: "Email and verification code required" });
+  }
+
+  const result = await User.verifyAccount(email, code);
+  if (result[0].affectedRows === 0) {
+    return res.status(400).json({ message: "Invalid verification code or email" });
+  }
+
+  res.json({ message: "Account verified successfully" });
 };
 
 

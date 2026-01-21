@@ -24,6 +24,13 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid'),
 }));
 
+// Mock nodemailer
+jest.mock('nodemailer', () => ({
+  createTransport: jest.fn(() => ({
+    sendMail: jest.fn().mockResolvedValue(),
+  })),
+}));
+
 describe('Auth Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,11 +43,14 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         role: 'TEAM_MEMBER',
+        is_verified: true,
         failed_attempts: 0,
         lock_until: null,
       };
 
-      db.query.mockResolvedValue([[mockUser]]);
+      db.query
+        .mockResolvedValueOnce([[mockUser], {}]) // findByEmail
+        .mockResolvedValueOnce([{ affectedRows: 1 }, {}]); // updateLastLogin
       bcrypt.compare.mockResolvedValue(true);
       jwt.sign.mockReturnValue('mocked-token');
 
@@ -63,11 +73,12 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         role: 'TEAM_MEMBER',
+        is_verified: true,
         failed_attempts: 0,
         lock_until: null,
       };
 
-      db.query.mockResolvedValue([[mockUser]]);
+      db.query.mockResolvedValue([[mockUser], {}]);
       bcrypt.compare.mockResolvedValue(false);
 
       const response = await request(app)
@@ -84,15 +95,16 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         role: 'TEAM_MEMBER',
-        failed_attempts: 2,
+        is_verified: true,
+        failed_attempts: 0,
         lock_until: null,
       };
 
       db.query
-        .mockResolvedValueOnce([[mockUser]]) // findByEmail
-        .mockResolvedValueOnce([]) // incrementFailedAttempts
-        .mockResolvedValueOnce([[{ failed_attempts: 3 }]]) // findByEmail after increment
-        .mockResolvedValueOnce([]); // lockAccount
+        .mockResolvedValueOnce([[mockUser], {}]) // findByEmail
+        .mockResolvedValueOnce([{ affectedRows: 1 }, {}]) // incrementFailedAttempts
+        .mockResolvedValueOnce([[{ failed_attempts: 3 }], {}]) // findByEmail after increment
+        .mockResolvedValueOnce([{ affectedRows: 1 }, {}]); // lockAccount
 
       bcrypt.compare.mockResolvedValue(false);
 
@@ -110,11 +122,12 @@ describe('Auth Controller', () => {
         email: 'test@example.com',
         password: 'hashed-password',
         role: 'TEAM_MEMBER',
+        is_verified: true,
         failed_attempts: 3,
         lock_until: new Date(Date.now() + 10000), // future date
       };
 
-      db.query.mockResolvedValue([[mockUser]]);
+      db.query.mockResolvedValue([[mockUser], {}]);
 
       const response = await request(app)
         .post('/api/auth/login')
@@ -123,11 +136,34 @@ describe('Auth Controller', () => {
       expect(response.status).toBe(423);
       expect(response.body.message).toContain('temporarily locked');
     });
+
+    it('should return 403 for unverified account', async () => {
+      const mockUser = {
+        id: 'user-id',
+        email: 'test@example.com',
+        password: 'hashed-password',
+        role: 'TEAM_MEMBER',
+        is_verified: false,
+        failed_attempts: 0,
+        lock_until: null,
+      };
+
+      db.query.mockResolvedValue([[mockUser], {}]);
+
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'test@example.com', password: 'password' });
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toContain('not verified');
+    });
   });
 
   describe('POST /api/auth/register', () => {
     it('should register a new user', async () => {
-      db.query.mockResolvedValue([]);
+      db.query
+        .mockResolvedValueOnce([[], {}]) // findByEmail
+        .mockResolvedValueOnce([[], {}]); // create
       bcrypt.hash.mockResolvedValue('hashed-password');
 
       const response = await request(app)
@@ -141,8 +177,25 @@ describe('Auth Controller', () => {
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.message).toBe('User created');
+      expect(response.body.message).toBe('User created. Please check your email for verification code.');
       expect(bcrypt.hash).toHaveBeenCalledWith('password', 10);
+    });
+
+    it('should return 400 if email already exists', async () => {
+      db.query.mockResolvedValue([[{ id: 'existing-id' }], {}]); // findByEmail
+
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'existing@example.com',
+          password: 'password',
+          first_name: 'First',
+          last_name: 'Last',
+          role: 'TEAM_MEMBER',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Email already exists');
     });
   });
 
