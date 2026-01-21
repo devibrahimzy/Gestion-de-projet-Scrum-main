@@ -65,6 +65,36 @@ CREATE TABLE `backlog_item_comments` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `project_audit`
+--
+
+CREATE TABLE `project_audit` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `project_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `action` varchar(50) NOT NULL,
+  `field_changed` varchar(100) DEFAULT NULL,
+  `old_value` text DEFAULT NULL,
+  `new_value` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `project_audit`
+--
+ALTER TABLE `project_audit`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_audit_project` (`project_id`),
+  ADD KEY `fk_audit_user` (`user_id`);
+
+--
+-- Constraints for table `project_audit`
+--
+ALTER TABLE `project_audit`
+  ADD CONSTRAINT `fk_audit_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Table structure for table `projects`
 --
 
@@ -75,6 +105,9 @@ CREATE TABLE `projects` (
   `start_date` date DEFAULT NULL,
   `end_date` date DEFAULT NULL,
   `status` enum('PLANNING','ACTIVE','COMPLETED') DEFAULT 'PLANNING',
+  `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
+  `sprint_duration` int(11) DEFAULT 2,
+  `objectives` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `isActive` tinyint(1) DEFAULT 1,
@@ -274,6 +307,11 @@ COMMIT;
 ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `failed_attempts` int(11) DEFAULT 0,
 ADD COLUMN IF NOT EXISTS `lock_until` datetime DEFAULT NULL,
 ADD COLUMN IF NOT EXISTS `profile_photo` varchar(255) DEFAULT NULL;
+
+-- Add columns for project details
+ALTER TABLE `projects` ADD COLUMN IF NOT EXISTS `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
+ADD COLUMN IF NOT EXISTS `sprint_duration` int(11) DEFAULT 2,
+ADD COLUMN IF NOT EXISTS `objectives` text DEFAULT NULL;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

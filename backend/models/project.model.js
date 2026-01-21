@@ -4,44 +4,64 @@ const db = require("../config/database");
 
 exports.findAll = () => {
     return db.query(
-        "SELECT * FROM projects WHERE isActive = 1 ORDER BY created_at DESC"
+        "SELECT id, name, description, start_date, end_date, status, methodology, sprint_duration, objectives, created_at, updated_at, isActive, created_by FROM projects WHERE isActive = 1 ORDER BY created_at DESC"
     );
 };
 
 exports.findById = (id) => {
     return db.query(
-        "SELECT * FROM projects WHERE id = ? AND isActive = 1",
+        "SELECT id, name, description, start_date, end_date, status, methodology, sprint_duration, objectives, created_at, updated_at, isActive, created_by FROM projects WHERE id = ? AND isActive = 1",
         [id]
     );
 };
 
 exports.create = (project) => {
-    const { id, name, description, start_date, end_date, created_by } = project;
+    const { id, name, description, start_date, end_date, methodology, sprint_duration, objectives, created_by } = project;
 
     return db.query(
-        `INSERT INTO projects 
-        (id, name, description, start_date, end_date, status, isActive, created_by)
-        VALUES (?, ?, ?, ?, ?, 'PLANNING', 1, ?)`,
-        [id, name, description, start_date, end_date, created_by]
+        `INSERT INTO projects
+        (id, name, description, start_date, end_date, methodology, sprint_duration, objectives, status, isActive, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PLANNING', 1, ?)`,
+        [id, name, description, start_date, end_date, methodology, sprint_duration, objectives, created_by]
     );
 };
-exports.findProjectsByUser = (userId) => {
+exports.findProjectsByUser = (userId, filters = {}) => {
+    let whereClause = "pm.user_id = ? AND p.isActive = 1";
+    const params = [userId];
+
+    if (filters.status) {
+        whereClause += " AND p.status = ?";
+        params.push(filters.status);
+    }
+
+    let orderBy = "p.created_at DESC";
+    if (filters.sort === 'name') {
+        orderBy = "p.name ASC";
+    }
+
     return db.query(
-        `SELECT 
+        `SELECT
             p.id,
             p.name,
             p.description,
             p.start_date,
             p.end_date,
             p.status,
+            p.methodology,
+            p.sprint_duration,
+            p.objectives,
+            p.created_at,
+            p.updated_at,
             p.isActive,
             pm.role,
-            pm.joined_at
+            pm.joined_at,
+            (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) as member_count,
+            COALESCE(ROUND((SELECT COUNT(*) FROM backlog_items bi WHERE bi.project_id = p.id AND bi.status = 'DONE') / NULLIF((SELECT COUNT(*) FROM backlog_items bi2 WHERE bi2.project_id = p.id), 0) * 100, 2), 0) as progress_percentage
         FROM projects p
         JOIN project_members pm ON pm.project_id = p.id
-        WHERE pm.user_id = ?
-          AND p.isActive = 1`,
-        [userId]
+        WHERE ${whereClause}
+        ORDER BY ${orderBy}`,
+        params
     );
 };
 
@@ -60,12 +80,25 @@ exports.softDelete = (id) => {
     );
 };
 
-exports.update = (id, project) => {
-    const { name, description, start_date, end_date, status, isActive } = project;
+exports.update = (id, project, userId) => {
+    const { name, description, start_date, end_date, methodology, sprint_duration, objectives, status, isActive } = project;
     return db.query(
-        "UPDATE projects SET name = ?, description = ?, start_date = ?, end_date = ?, status = ?, isActive = ? WHERE id = ?",
-        [name, description, start_date, end_date, status, isActive, id]
+        "UPDATE projects SET name = ?, description = ?, start_date = ?, end_date = ?, methodology = ?, sprint_duration = ?, objectives = ?, status = ?, isActive = ?, updated_at = NOW() WHERE id = ?",
+        [name, description, start_date, end_date, methodology, sprint_duration, objectives, status, isActive, id]
     );
+};
+
+exports.logChange = (projectId, userId, action, fieldChanged, oldValue, newValue) => {
+    const { v4: uuid } = require('uuid');
+    return db.query(
+        "INSERT INTO project_audit (id, project_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [uuid(), projectId, userId, action, fieldChanged, oldValue, newValue]
+    );
+};
+
+exports.hardDelete = (id) => {
+    // This would delete all associated data - use with caution
+    return db.query("DELETE FROM projects WHERE id = ?", [id]);
 };
 
 

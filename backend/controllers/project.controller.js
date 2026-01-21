@@ -18,10 +18,21 @@ exports.getAllProjects = async (req, res) => {
 exports.getMyProjects = async (req, res) => {
     try {
         const userId = req.user.id;
+        const { status, sort } = req.query;
 
-        const [projects] = await Project.findProjectsByUser(userId);
+        const filters = {};
+        if (status) filters.status = status;
+        if (sort) filters.sort = sort;
 
-        res.json(projects);
+        const [projects] = await Project.findProjectsByUser(userId, filters);
+
+        // Parse objectives back to array
+        const parsedProjects = projects.map(p => ({
+            ...p,
+            objectives: p.objectives ? JSON.parse(p.objectives) : []
+        }));
+
+        res.json(parsedProjects);
     } catch (err) {
         res.status(500).json({
             message: "Error retrieving user projects",
@@ -42,9 +53,23 @@ exports.getProjectById = async (req, res) => {
 
 exports.createProject = async (req, res) => {
     try {
-        const { name, description, start_date, end_date } = req.body;
-        if (!name) {
-            return res.status(400).json({ message: "Project name is required" });
+        const { name, description, objectives, methodology, sprint_duration, start_date } = req.body;
+
+        // Validation
+        if (!name || name.length < 3 || name.length > 100) {
+            return res.status(400).json({ message: "Project name is required (3-100 characters)" });
+        }
+        if (!description || description.length > 1000) {
+            return res.status(400).json({ message: "Description is required (max 1000 characters)" });
+        }
+        if (!objectives || !Array.isArray(objectives) || objectives.length < 3) {
+            return res.status(400).json({ message: "At least 3 main objectives are required" });
+        }
+        if (methodology && !['SCRUM', 'KANBAN'].includes(methodology)) {
+            return res.status(400).json({ message: "Methodology must be SCRUM or KANBAN" });
+        }
+        if (sprint_duration && ![1, 2, 3, 4].includes(sprint_duration)) {
+            return res.status(400).json({ message: "Sprint duration must be 1, 2, 3, or 4 weeks" });
         }
 
         const projectId = uuid();
@@ -54,10 +79,10 @@ exports.createProject = async (req, res) => {
             id: projectId,
             name,
             description,
+            objectives: JSON.stringify(objectives),
+            methodology: methodology || 'SCRUM',
+            sprint_duration: sprint_duration || 2,
             start_date,
-            end_date,
-            status: "PLANNING",
-            isActive: 1,
             created_by: userId
         };
 
@@ -73,7 +98,7 @@ exports.createProject = async (req, res) => {
 
         res.status(201).json({
             message: "Project created",
-            project: newProject
+            project: { ...newProject, objectives }
         });
     } catch (err) {
         res.status(500).json({ message: "Error creating project", error: err.message });
@@ -84,7 +109,7 @@ exports.createProject = async (req, res) => {
 exports.updateProject = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, start_date, end_date, status, isActive } = req.body;
+        const { name, description, objectives, methodology, sprint_duration, start_date, end_date, status, isActive } = req.body;
 
         const allowed = await isScrumMaster(id, req.user.id);
         if (!allowed) {
@@ -96,11 +121,27 @@ exports.updateProject = async (req, res) => {
 
         const current = rows[0];
 
+        // Validation
+        if (name && (name.length < 3 || name.length > 100)) {
+            return res.status(400).json({ message: "Project name must be 3-100 characters" });
+        }
+        if (description && description.length > 1000) {
+            return res.status(400).json({ message: "Description max 1000 characters" });
+        }
+        if (objectives && (!Array.isArray(objectives) || objectives.length < 3)) {
+            return res.status(400).json({ message: "At least 3 objectives required" });
+        }
+        if (methodology && !['SCRUM', 'KANBAN'].includes(methodology)) {
+            return res.status(400).json({ message: "Methodology must be SCRUM or KANBAN" });
+        }
+        if (sprint_duration && ![1, 2, 3, 4].includes(sprint_duration)) {
+            return res.status(400).json({ message: "Sprint duration must be 1, 2, 3, or 4 weeks" });
+        }
+
         // Validate Status if provided
         let finalStatus = status || current.status;
         const validStatuses = ['PLANNING', 'ACTIVE', 'COMPLETED'];
 
-        // Map common synonyms or handle invalid values
         if (status === 'IN_PROGRESS') finalStatus = 'ACTIVE';
         else if (status && !validStatuses.includes(status)) {
             return res.status(400).json({
@@ -112,15 +153,26 @@ exports.updateProject = async (req, res) => {
         const updatedProject = {
             name: name ?? current.name,
             description: description ?? current.description,
+            objectives: objectives ? JSON.stringify(objectives) : current.objectives,
+            methodology: methodology ?? current.methodology,
+            sprint_duration: sprint_duration ?? current.sprint_duration,
             start_date: start_date ?? current.start_date,
             end_date: end_date ?? current.end_date,
             status: finalStatus,
             isActive: isActive ?? current.isActive
         };
 
-        await Project.update(id, updatedProject);
+        // Log changes
+        const fieldsToCheck = ['name', 'description', 'objectives', 'methodology', 'sprint_duration', 'start_date', 'end_date', 'status', 'isActive'];
+        for (const field of fieldsToCheck) {
+            if (updatedProject[field] !== current[field]) {
+                await Project.logChange(id, req.user.id, 'UPDATE', field, current[field], updatedProject[field]);
+            }
+        }
 
-        res.json({ message: "Project updated successfully", project: updatedProject });
+        await Project.update(id, updatedProject, req.user.id);
+
+        res.json({ message: "Project updated successfully", project: { ...updatedProject, objectives: objectives || (current.objectives ? JSON.parse(current.objectives) : []) } });
     } catch (err) {
         res.status(500).json({ message: "Error updating project", error: err.message });
     }
@@ -131,6 +183,7 @@ exports.updateProject = async (req, res) => {
 exports.deleteProject = async (req, res) => {
     try {
         const projectId = req.params.id;
+        const { confirm } = req.query;
 
         // Vérifie si l'utilisateur est Scrum Master
         const allowed = await isScrumMaster(projectId, req.user.id);
@@ -138,10 +191,16 @@ exports.deleteProject = async (req, res) => {
             return res.status(403).json({ message: "Only Scrum Master can delete this project" });
         }
 
-        // Soft delete
-        await Project.softDelete(projectId);
-
-        res.json({ message: "Project soft-deleted successfully" });
+        if (confirm === 'hard') {
+            // Hard delete - requires double confirmation
+            await Project.hardDelete(projectId);
+            res.json({ message: "Project permanently deleted" });
+        } else {
+            // Soft delete (archive)
+            await Project.softDelete(projectId);
+            await Project.logChange(projectId, req.user.id, 'ARCHIVE', null, null, null);
+            res.json({ message: "Project archived successfully" });
+        }
     } catch (err) {
         res.status(500).json({ message: "Error deleting project", error: err.message });
     }
@@ -192,5 +251,61 @@ exports.removeMember = async (req, res) => {
         res.json({ message: "Member removed" });
     } catch (err) {
         res.status(500).json({ message: "Error removing member", error: err.message });
+    }
+};
+
+exports.getProjectDashboard = async (req, res) => {
+    try {
+        const projectId = req.params.id;
+
+        // Check if user is member
+        const [members] = await Project.getMembers(projectId);
+        const isMember = members.some(m => m.id === req.user.id);
+        if (!isMember) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        // Current sprint
+        const [sprints] = await db.query(
+            "SELECT * FROM sprints WHERE project_id = ? AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1",
+            [projectId]
+        );
+        const currentSprint = sprints[0] || null;
+
+        // Metrics
+        const [taskStats] = await db.query(`
+            SELECT
+                COUNT(*) as total_tasks,
+                SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END) as completed_tasks,
+                SUM(CASE WHEN status != 'DONE' AND due_date < CURDATE() THEN 1 ELSE 0 END) as overdue_tasks
+            FROM backlog_items
+            WHERE project_id = ?
+        `, [projectId]);
+
+        const metrics = {
+            total_tasks: taskStats[0].total_tasks,
+            completed_tasks: taskStats[0].completed_tasks,
+            overdue_tasks: taskStats[0].overdue_tasks,
+            average_velocity: 0 // Placeholder
+        };
+
+        // Active members
+        const activeMembers = members;
+
+        // Upcoming deadlines (next 7 days)
+        const [deadlines] = await db.query(`
+            SELECT title, due_date FROM backlog_items
+            WHERE project_id = ? AND due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            ORDER BY due_date
+        `, [projectId]);
+
+        res.json({
+            current_sprint: currentSprint,
+            metrics,
+            active_members: activeMembers,
+            upcoming_deadlines: deadlines
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Error retrieving dashboard", error: err.message });
     }
 };
