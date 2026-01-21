@@ -25,6 +25,16 @@ const sendVerificationEmail = async (email, code) => {
   await transporter.sendMail(mailOptions);
 };
 
+const sendInvitationEmail = async (email, link, role) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Project Invitation',
+    text: `You have been invited to join the project as ${role}. Click here to accept: ${link}`,
+  };
+  await transporter.sendMail(mailOptions);
+};
+
 exports.register = async (req, res) => {
   const { email, password, first_name, last_name, role } = req.body;
 

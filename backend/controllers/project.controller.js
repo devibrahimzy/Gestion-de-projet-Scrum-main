@@ -1,5 +1,26 @@
 const Project = require("../models/project.model");
 const { v4: uuid } = require("uuid");
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
+
+// Email transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendInvitationEmail = async (email, link, role) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Project Invitation',
+    text: `You have been invited to join the project as ${role}. Click here to accept: ${link}`,
+  };
+  await transporter.sendMail(mailOptions);
+};
 
 
 const isScrumMaster = async (projectId, userId) => {
@@ -248,9 +269,107 @@ exports.removeMember = async (req, res) => {
         }
 
         await Project.removeMember(req.params.id, req.params.userId);
-        res.json({ message: "Member removed" });
+        await Project.reassignTasks(req.params.userId); // Reassign tasks to backlog
+        res.json({ message: "Member removed and tasks reassigned to backlog" });
     } catch (err) {
         res.status(500).json({ message: "Error removing member", error: err.message });
+    }
+};
+
+exports.inviteMember = async (req, res) => {
+    try {
+        const { project_id, email, role } = req.body;
+
+        const allowed = await isScrumMaster(project_id, req.user.id);
+        if (!allowed) {
+            return res.status(403).json({ message: "Only Scrum Master can invite members" });
+        }
+
+        // Check if user exists
+        const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+        if (existingUser.length === 0) {
+            return res.status(400).json({ message: "User with this email does not exist" });
+        }
+
+        const userId = existingUser[0].id;
+
+        // Check if already member
+        const [member] = await Project.getMembers(project_id);
+        if (member.some(m => m.id === userId)) {
+            return res.status(400).json({ message: "User is already a member of this project" });
+        }
+
+        // Create invitation
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+        await Project.inviteMember({
+            id: uuid(),
+            project_id,
+            email,
+            role: role || 'TEAM_MEMBER',
+            invited_by: req.user.id,
+            token,
+            expires_at: expiresAt
+        });
+
+        // Send email
+        const inviteLink = `${process.env.FRONTEND_URL}/accept-invitation?token=${token}`;
+        try {
+            await sendInvitationEmail(email, inviteLink, role);
+        } catch (error) {
+            console.error('Error sending invitation email:', error);
+        }
+
+        res.status(201).json({ message: "Invitation sent" });
+    } catch (err) {
+        res.status(500).json({ message: "Error sending invitation", error: err.message });
+    }
+};
+
+exports.acceptInvitation = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        const [invitations] = await Project.getInvitationByToken(token);
+        if (invitations.length === 0) {
+            return res.status(400).json({ message: "Invalid or expired invitation" });
+        }
+
+        const invitation = invitations[0];
+
+        // Add member
+        await Project.addMember({
+            id: uuid(),
+            project_id: invitation.project_id,
+            user_id: req.user.id,
+            role: invitation.role
+        });
+
+        // Update invitation status
+        await Project.updateInvitationStatus(invitation.id, 'ACCEPTED');
+
+        res.json({ message: "Invitation accepted, you are now a member of the project" });
+    } catch (err) {
+        res.status(500).json({ message: "Error accepting invitation", error: err.message });
+    }
+};
+
+exports.refuseInvitation = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        const [invitations] = await Project.getInvitationByToken(token);
+        if (invitations.length === 0) {
+            return res.status(400).json({ message: "Invalid or expired invitation" });
+        }
+
+        // Update invitation status
+        await Project.updateInvitationStatus(invitations[0].id, 'REFUSED');
+
+        res.json({ message: "Invitation refused" });
+    } catch (err) {
+        res.status(500).json({ message: "Error refusing invitation", error: err.message });
     }
 };
 

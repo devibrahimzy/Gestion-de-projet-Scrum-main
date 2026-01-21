@@ -129,3 +129,34 @@ exports.removeMember = (projectId, userId) => {
         [projectId, userId]
     );
 };
+
+exports.reassignTasks = (userId) => {
+    // Reassign tasks to null (back to backlog)
+    return db.query(
+        "UPDATE backlog_items SET assigned_to_id = NULL WHERE assigned_to_id = ?",
+        [userId]
+    );
+};
+
+// Invitations
+exports.inviteMember = (invitation) => {
+    const { id, project_id, email, role, invited_by, token, expires_at } = invitation;
+    return db.query(
+        "INSERT INTO project_invitations (id, project_id, email, role, invited_by, token, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [id, project_id, email, role, invited_by, token, expires_at]
+    );
+};
+
+exports.getInvitationByToken = (token) => {
+    return db.query(
+        "SELECT * FROM project_invitations WHERE token = ? AND expires_at > NOW() AND status = 'PENDING'",
+        [token]
+    );
+};
+
+exports.updateInvitationStatus = (id, status) => {
+    return db.query(
+        "UPDATE project_invitations SET status = ? WHERE id = ?",
+        [status, id]
+    );
+};

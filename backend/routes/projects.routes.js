@@ -14,6 +14,9 @@ router.get("/:id/dashboard", auth, projectController.getProjectDashboard);
 
 router.get("/:id/members", auth, projectController.getProjectMembers);
 router.post("/members", auth, projectController.addMember);
+router.post("/invite", auth, projectController.inviteMember);
+router.post("/accept-invitation", auth, projectController.acceptInvitation);
+router.post("/refuse-invitation", auth, projectController.refuseInvitation);
 router.delete("/:id/members/:userId", auth, projectController.removeMember);
 
 module.exports = router;

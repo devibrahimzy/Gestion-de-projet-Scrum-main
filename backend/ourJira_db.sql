@@ -65,6 +65,38 @@ CREATE TABLE `backlog_item_comments` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `project_invitations`
+--
+
+CREATE TABLE `project_invitations` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `project_id` char(36) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `role` enum('PRODUCT_OWNER','SCRUM_MASTER','TEAM_MEMBER') NOT NULL DEFAULT 'TEAM_MEMBER',
+  `invited_by` char(36) NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `status` enum('PENDING','ACCEPTED','REFUSED','EXPIRED') NOT NULL DEFAULT 'PENDING',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `project_invitations`
+--
+ALTER TABLE `project_invitations`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_invitation` (`project_id`,`email`),
+  ADD KEY `fk_invitation_project` (`project_id`),
+  ADD KEY `fk_invitation_user` (`invited_by`);
+
+--
+-- Constraints for table `project_invitations`
+--
+ALTER TABLE `project_invitations`
+  ADD CONSTRAINT `fk_invitation_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_invitation_user` FOREIGN KEY (`invited_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Table structure for table `project_audit`
 --
 
