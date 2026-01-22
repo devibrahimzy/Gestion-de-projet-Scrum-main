@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { Button } from "@/shared/components/ui/button";
+import { Progress } from "@/shared/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ import { Label } from "@/shared/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { sprintsService } from "@/features/sprints/sprints.service";
 import { Sprint, UpdateSprintDTO } from "@/features/sprints/sprints.types";
-import { PlusCircle, MoreHorizontal, CalendarIcon, Play, CheckCircle, Trash2, Eye, GitBranch, Edit } from "lucide-react";
+import { PlusCircle, MoreHorizontal, CalendarIcon, Play, CheckCircle, Trash2, Eye, GitBranch, Edit, Target, TrendingUp, History } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -184,7 +185,26 @@ export default function SprintsPage() {
         <div className="container mx-auto py-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Sprints</h1>
-                <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
+                <div className="flex gap-2">
+                    <Link to={`/projects/${projectId}/sprints/active`}>
+                        <Button variant="outline">
+                            <Eye className="mr-2 h-4 w-4" />
+                            Active Sprint
+                        </Button>
+                    </Link>
+                    <Link to={`/projects/${projectId}/sprints/planning`}>
+                        <Button variant="outline">
+                            <Target className="mr-2 h-4 w-4" />
+                            Sprint Planning
+                        </Button>
+                    </Link>
+                    <Link to={`/projects/${projectId}/sprints/history`}>
+                        <Button variant="outline">
+                            <History className="mr-2 h-4 w-4" />
+                            History
+                        </Button>
+                    </Link>
+                    <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" /> Create Sprint
@@ -238,8 +258,9 @@ export default function SprintsPage() {
                             <Button onClick={handleCreateSprint}>Create</Button>
                         </DialogFooter>
                     </DialogContent>
-                </Dialog>
-                
+                 </Dialog>
+                </div>
+
                 {/* Edit Sprint Dialog */}
                 <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
                     <DialogContent>
@@ -298,58 +319,89 @@ export default function SprintsPage() {
                         <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Progress</TableHead>
                             <TableHead>Start Date</TableHead>
                             <TableHead>End Date</TableHead>
-                            <TableHead>Planned Velocity</TableHead>
-                             <TableHead>Actual Velocity</TableHead>
+                            <TableHead>Capacity</TableHead>
+                            <TableHead>Velocity</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {sprints.map((sprint) => (
-                            <TableRow key={sprint.id}>
-                                <TableCell className="font-medium">{sprint.name}</TableCell>
-                                <TableCell>{getStatusBadge(sprint.status)}</TableCell>
-                                <TableCell>{sprint.start_date ? format(new Date(sprint.start_date), 'PPP') : 'N/A'}</TableCell>
-                                <TableCell>{sprint.end_date ? format(new Date(sprint.end_date), 'PPP') : 'N/A'}</TableCell>
-                                <TableCell>{sprint.planned_velocity || 'N/A'}</TableCell>
-                                <TableCell>{sprint.actual_velocity ?? 'N/A'}</TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {sprint.status === 'PLANNING' && (
-                                                <DropdownMenuItem onClick={() => handleEditSprint(sprint)}>
-                                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                                </DropdownMenuItem>
+                        {sprints.map((sprint) => {
+                            const progressPercentage = sprint.status === 'COMPLETED' && sprint.planned_velocity
+                                ? Math.min((sprint.actual_velocity || 0) / sprint.planned_velocity * 100, 100)
+                                : 0;
+
+                            return (
+                                <TableRow key={sprint.id}>
+                                    <TableCell className="font-medium">
+                                        <div>
+                                            <div>{sprint.name}</div>
+                                            {sprint.objective && (
+                                                <div className="text-sm text-gray-500 truncate max-w-xs">
+                                                    {sprint.objective}
+                                                </div>
                                             )}
-                                            {sprint.status === 'COMPLETED' && (
-                                                 <DropdownMenuItem asChild>
-                                                    <Link to={`/projects/${projectId}/sprints/${sprint.id}/retrospective`}>
-                                                        <GitBranch className="mr-2 h-4 w-4" /> Retrospective
-                                                    </Link>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{getStatusBadge(sprint.status)}</TableCell>
+                                    <TableCell>
+                                        {sprint.status === 'COMPLETED' ? (
+                                            <div className="flex items-center gap-2">
+                                                <Progress value={progressPercentage} className="w-16 h-2" />
+                                                <span className="text-xs">{progressPercentage.toFixed(0)}%</span>
+                                            </div>
+                                        ) : sprint.status === 'ACTIVE' ? (
+                                            <span className="text-blue-600 cursor-pointer" onClick={() => window.location.href = `/projects/${projectId}/sprints/active`}>
+                                                <TrendingUp className="h-4 w-4 inline mr-1" />
+                                                View Progress
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">Not started</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{sprint.start_date ? format(new Date(sprint.start_date), 'MMM dd') : 'N/A'}</TableCell>
+                                    <TableCell>{sprint.end_date ? format(new Date(sprint.end_date), 'MMM dd') : 'N/A'}</TableCell>
+                                    <TableCell>{sprint.planned_velocity || 'N/A'}</TableCell>
+                                    <TableCell>{sprint.actual_velocity ?? 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {sprint.status === 'PLANNING' && (
+                                                    <DropdownMenuItem onClick={() => handleEditSprint(sprint)}>
+                                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {sprint.status === 'COMPLETED' && (
+                                                     <DropdownMenuItem asChild>
+                                                        <Link to={`/projects/${projectId}/sprints/${sprint.id}/retrospective`}>
+                                                            <GitBranch className="mr-2 h-4 w-4" /> Retrospective
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {sprint.status === 'PLANNING' && (
+                                                    <DropdownMenuItem onClick={() => handleActivateSprint(sprint.id)}>
+                                                        <Play className="mr-2 h-4 w-4" /> Activate
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {sprint.status === 'ACTIVE' && (
+                                                    <DropdownMenuItem onClick={() => handleCompleteSprint(sprint.id)}>
+                                                        <CheckCircle className="mr-2 h-4 w-4" /> Complete
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSprint(sprint.id)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                 </DropdownMenuItem>
-                                            )}
-                                            {sprint.status === 'PLANNING' && (
-                                                <DropdownMenuItem onClick={() => handleActivateSprint(sprint.id)}>
-                                                    <Play className="mr-2 h-4 w-4" /> Activate
-                                                </DropdownMenuItem>
-                                            )}
-                                            {sprint.status === 'ACTIVE' && (
-                                                <DropdownMenuItem onClick={() => handleCompleteSprint(sprint.id)}>
-                                                    <CheckCircle className="mr-2 h-4 w-4" /> Complete
-                                                </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteSprint(sprint.id)}>
-                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </div>
