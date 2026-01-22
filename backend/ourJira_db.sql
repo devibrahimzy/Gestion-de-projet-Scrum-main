@@ -110,11 +110,6 @@ ALTER TABLE `backlog_attachments`
   ADD KEY `fk_attachment_user` (`uploaded_by`);
 
 --
--- Constraints for table `backlog_attachments`
---
-ALTER TABLE `backlog_attachments`
-  ADD CONSTRAINT `fk_attachment_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_attachment_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `kanban_columns`
@@ -137,10 +132,6 @@ ALTER TABLE `kanban_columns`
   ADD KEY `fk_kanban_project` (`project_id`);
 
 --
--- Constraints for table `kanban_columns`
---
-ALTER TABLE `kanban_columns`
-  ADD CONSTRAINT `fk_kanban_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `burndown_data`
@@ -163,10 +154,6 @@ ALTER TABLE `burndown_data`
   ADD KEY `fk_burndown_sprint` (`sprint_id`);
 
 --
--- Constraints for table `burndown_data`
---
-ALTER TABLE `burndown_data`
-  ADD CONSTRAINT `fk_burndown_sprint` FOREIGN KEY (`sprint_id`) REFERENCES `sprints` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `backlog_history`
@@ -192,11 +179,6 @@ ALTER TABLE `backlog_history`
   ADD KEY `fk_history_user` (`user_id`);
 
 --
--- Constraints for table `backlog_history`
---
-ALTER TABLE `backlog_history`
-  ADD CONSTRAINT `fk_history_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_history_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `project_invitations`
@@ -224,11 +206,6 @@ ALTER TABLE `project_invitations`
   ADD KEY `fk_invitation_user` (`invited_by`);
 
 --
--- Constraints for table `project_invitations`
---
-ALTER TABLE `project_invitations`
-  ADD CONSTRAINT `fk_invitation_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_invitation_user` FOREIGN KEY (`invited_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `project_audit`
@@ -254,11 +231,6 @@ ALTER TABLE `project_audit`
   ADD KEY `fk_audit_user` (`user_id`);
 
 --
--- Constraints for table `project_audit`
---
-ALTER TABLE `project_audit`
-  ADD CONSTRAINT `fk_audit_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Table structure for table `projects`
@@ -451,6 +423,58 @@ ALTER TABLE `sprints`
 --
 
 --
+
+--
+
+--
+
+--
+-- Constraints for table `backlog_acceptance_criteria`
+--
+ALTER TABLE `backlog_acceptance_criteria`
+  ADD CONSTRAINT `fk_criteria_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `backlog_attachments`
+--
+ALTER TABLE `backlog_attachments`
+  ADD CONSTRAINT `fk_attachment_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_attachment_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `kanban_columns`
+--
+ALTER TABLE `kanban_columns`
+  ADD CONSTRAINT `fk_kanban_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `burndown_data`
+--
+ALTER TABLE `burndown_data`
+  ADD CONSTRAINT `fk_burndown_sprint` FOREIGN KEY (`sprint_id`) REFERENCES `sprints` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `backlog_history`
+--
+ALTER TABLE `backlog_history`
+  ADD CONSTRAINT `fk_history_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_history_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `project_invitations`
+--
+ALTER TABLE `project_invitations`
+  ADD CONSTRAINT `fk_invitation_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_invitation_user` FOREIGN KEY (`invited_by`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `project_audit`
+--
+ALTER TABLE `project_audit`
+  ADD CONSTRAINT `fk_audit_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `backlog_items`
 --
 ALTER TABLE `backlog_items`
@@ -468,12 +492,6 @@ ALTER TABLE `backlog_item_comments`
 --
 ALTER TABLE `sprints`
   ADD CONSTRAINT `fk_sprint_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`);
-
---
--- Constraints for table `backlog_acceptance_criteria`
---
-ALTER TABLE `backlog_acceptance_criteria`
-  ADD CONSTRAINT `fk_criteria_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 -- Add columns for account locking
