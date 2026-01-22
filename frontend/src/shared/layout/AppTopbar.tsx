@@ -44,7 +44,6 @@ export const AppTopbar: React.FC = () => {
   const location = useLocation();
   const { currentProject } = useProjectsStore();
   const { user, logout } = useAuthStore();
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleLogout = async () => {
     try {
@@ -147,16 +146,7 @@ export const AppTopbar: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
+           
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">

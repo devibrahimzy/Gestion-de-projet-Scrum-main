@@ -419,12 +419,8 @@ exports.reorderBacklogItems = async (req, res) => {
             });
         }
 
-        // Check if any items are assigned to sprints
+        // Allow reordering all items, including those assigned to sprints
         const requestedItems = items.filter(item => itemIds.includes(item.id));
-        const sprintItems = requestedItems.filter(item => item.sprint_id);
-        if (sprintItems.length > 0) {
-            return res.status(400).json({ message: "Cannot reorder items that are assigned to sprints" });
-        }
 
         // Update positions in bulk
         const updatePromises = itemIds.map((itemId, index) =>
