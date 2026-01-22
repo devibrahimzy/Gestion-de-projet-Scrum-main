@@ -10,7 +10,16 @@ import {
 
 export const kanbanService = {
     getBoard: async (sprintId: string, filters?: KanbanFilters): Promise<KanbanBoard> => {
-        const response = await api.get<KanbanBoard>(`/kanban/${sprintId}`, { params: filters });
+        const params: Record<string, any> = {};
+        if (filters) {
+            if (filters.assigned_to_id !== undefined) {
+                params.assigned_to_id = filters.assigned_to_id === null ? 'null' : filters.assigned_to_id;
+            }
+            if (filters.type !== undefined) params.type = filters.type;
+            if (filters.priority !== undefined) params.priority = filters.priority;
+            if (filters.tags !== undefined) params.tags = filters.tags;
+        }
+        const response = await api.get<KanbanBoard>(`/kanban/${sprintId}`, { params });
         return response.data;
     },
 

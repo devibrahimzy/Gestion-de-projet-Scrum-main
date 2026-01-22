@@ -135,9 +135,13 @@ exports.findAllBySprint = (sprintId, filters = {}) => {
     let sql = "SELECT * FROM backlog_items WHERE sprint_id = ? AND isActive = 1";
     const params = [sprintId];
 
-    if (filters.assigned_to_id) {
-        sql += " AND assigned_to_id = ?";
-        params.push(filters.assigned_to_id);
+    if (filters.assigned_to_id !== undefined) {
+        if (filters.assigned_to_id === null) {
+            sql += " AND assigned_to_id IS NULL";
+        } else {
+            sql += " AND assigned_to_id = ?";
+            params.push(filters.assigned_to_id);
+        }
     }
 
     if (filters.type) {

@@ -93,7 +93,7 @@ export default function RetrospectiveHistoryPage() {
                     <Link to={`/projects/${projectId}/sprints`}>
                         <Button variant="ghost" size="sm">
                             <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back to Sprints
+                        
                         </Button>
                     </Link>
                     <div>

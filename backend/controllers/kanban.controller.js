@@ -30,7 +30,12 @@ exports.getKanbanBoard = async (req, res) => {
         ];
 
         const { assigned_to_id, type, priority, tags } = req.query;
-        const filters = { assigned_to_id, type, priority, tags };
+        const filters = { 
+            assigned_to_id: assigned_to_id === 'null' ? null : assigned_to_id, 
+            type, 
+            priority, 
+            tags 
+        };
         const [items] = await BacklogItem.findAllBySprint(sprintId, filters);
 
         // Enhance items with card details

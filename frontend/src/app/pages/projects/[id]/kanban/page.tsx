@@ -17,6 +17,8 @@ import { kanbanService } from "@/features/kanban/kanban.service";
 import { useKanbanStore } from "@/features/kanban/kanban.store";
 import { KanbanBoard, KanbanItem, KanbanColumn, KanbanFilters } from "@/features/kanban/kanban.types";
 import { Sprint } from "@/features/sprints/sprints.types";
+import { projectsService } from "@/features/projects/projects.service";
+import { ProjectMemberWithUser } from "@/features/projects/projects.types";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/shared/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
@@ -367,6 +369,7 @@ export default function KanbanBoardPage() {
 
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
+    const [members, setMembers] = useState<ProjectMemberWithUser[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
@@ -383,8 +386,12 @@ export default function KanbanBoardPage() {
             if (!projectId) return;
             try {
                 setLoading(true);
-                const projectSprints = await sprintsService.getByProject(projectId);
+                const [projectSprints, membersData] = await Promise.all([
+                    sprintsService.getByProject(projectId),
+                    projectsService.getMembers(projectId)
+                ]);
                 setSprints(projectSprints);
+                setMembers(membersData);
 
                 const currentActiveSprint = projectSprints.find(s => s.status === 'ACTIVE') || null;
                 setActiveSprint(currentActiveSprint);
@@ -611,7 +618,7 @@ export default function KanbanBoardPage() {
                                  <Select
                                      value={filters.assigned_to_id || "all"}
                                      onValueChange={(value) =>
-                                         handleFilterChange({ assigned_to_id: value === "all" ? undefined : value })
+                                         handleFilterChange({ assigned_to_id: value === "all" ? undefined : value === "unassigned" ? null : value })
                                      }
                                  >
                                      <SelectTrigger>
@@ -619,7 +626,12 @@ export default function KanbanBoardPage() {
                                      </SelectTrigger>
                                      <SelectContent>
                                          <SelectItem value="all">All assignees</SelectItem>
-                                         {/* TODO: Populate with actual team members */}
+                                         <SelectItem value="unassigned">Unassigned</SelectItem>
+                                         {members.map(member => (
+                                             <SelectItem key={member.id} value={member.id}>
+                                                 {member.first_name} {member.last_name}
+                                             </SelectItem>
+                                         ))}
                                      </SelectContent>
                                  </Select>
                              </div>
