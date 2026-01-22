@@ -29,13 +29,43 @@ exports.getKanbanBoard = async (req, res) => {
             { name: 'Done', status: 'DONE' }
         ];
 
-        const { assigned_to_id, type } = req.query;
-        const [items] = await BacklogItem.findAllBySprint(sprintId, { assigned_to_id, type });
+        const { assigned_to_id, type, priority, tags } = req.query;
+        const filters = { assigned_to_id, type, priority, tags };
+        const [items] = await BacklogItem.findAllBySprint(sprintId, filters);
+
+        // Enhance items with card details
+        const enhancedItems = await Promise.all(items.map(async (item) => {
+            // Get comment count
+            const [comments] = await db.query("SELECT COUNT(*) as count FROM backlog_item_comments WHERE backlog_item_id = ?", [item.id]);
+            const commentCount = comments[0].count;
+
+            // Get assigned user info
+            let assignedUser = null;
+            if (item.assigned_to_id) {
+                const [users] = await db.query("SELECT first_name, last_name, profile_photo FROM users WHERE id = ?", [item.assigned_to_id]);
+                if (users.length > 0) {
+                    assignedUser = users[0];
+                }
+            }
+
+            // Check if overdue
+            const isOverdue = item.due_date && new Date(item.due_date) < new Date() && item.status !== 'DONE';
+
+            return {
+                ...item,
+                unique_id: `${item.project_id.substring(0, 4).toUpperCase()}-${item.id.substring(0, 3).toUpperCase()}`,
+                tags: item.tags ? JSON.parse(item.tags) : [],
+                comment_count: commentCount,
+                assigned_user: assignedUser,
+                is_overdue: isOverdue,
+                is_blocked: item.is_blocked
+            };
+        }));
 
         // Group items by column
         const board = boardColumns.map(col => ({
             ...col,
-            items: items.filter(item => item.status === (col.status || col.name.replace(' ', '_').toUpperCase())),
+            items: enhancedItems.filter(item => item.status === (col.status || col.name.replace(' ', '_').toUpperCase())),
             item_count: 0 // Will calculate
         }));
 
@@ -47,7 +77,7 @@ exports.getKanbanBoard = async (req, res) => {
             }
         });
 
-        res.json({ columns: board, total_items: items.length });
+        res.json({ columns: board, total_items: enhancedItems.length });
     } catch (err) {
         res.status(500).json({ message: "Error retrieving Kanban board", error: err.message });
     }
@@ -146,6 +176,12 @@ exports.moveKanbanItem = async (req, res) => {
             [...updateParams, id]
         );
         console.log(`DEBUG: Update result rows: ${updateResult.affectedRows}`);
+
+        // Record movement history
+        await connection.query(
+            "INSERT INTO backlog_history (id, backlog_item_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [uuid(), id, req.user.id, 'MOVED', 'status', fromStatus, finalStatus]
+        );
 
         await connection.commit();
 

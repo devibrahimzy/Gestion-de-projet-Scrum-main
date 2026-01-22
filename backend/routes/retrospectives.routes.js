@@ -12,5 +12,6 @@ router.delete("/items/:id", auth, retroController.deleteItem);
 
 router.get("/project/:projectId", auth, retroController.getRetrosByProject);
 router.get("/project/:projectId/trends", auth, retroController.getTrends);
+router.get("/:id/export-pdf", auth, retroController.exportRetrospectivePDF);
 
 module.exports = router;

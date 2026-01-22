@@ -48,7 +48,7 @@ exports.getBacklogItemById = async (req, res) => {
 
 exports.createBacklogItem = async (req, res) => {
     try {
-        const { project_id, sprint_id, title, description, type, story_points, priority, tags, assigned_to_id } = req.body;
+        const { project_id, sprint_id, title, description, type, story_points, priority, tags, due_date, is_blocked, assigned_to_id } = req.body;
 
         // Validation
         if (!project_id || !title) return res.status(400).json({ message: "Project ID and Title are required" });
@@ -111,6 +111,8 @@ exports.createBacklogItem = async (req, res) => {
             story_points: story_points || 0,
             priority: priority || 'MEDIUM',
             tags,
+            due_date,
+            is_blocked: is_blocked || 0,
             status: finalStatus,
             position: itemPosition,
             assigned_to_id: assigned_to_id || null,

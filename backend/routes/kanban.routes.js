@@ -2,7 +2,7 @@ const router = require("express").Router();
 const kanbanController = require("../controllers/kanban.controller");
 const auth = require("../middlewares/auth.middleware");
 
-router.get("/:sprintId", auth, kanbanController.getKanbanBoard);
+router.get("/:sprintId", auth, kanbanController.getKanbanBoard); // Supports ?assigned_to_id=...&type=...&priority=...&tags=...
 router.patch("/move/:id", auth, kanbanController.moveKanbanItem);
 
 // Column management

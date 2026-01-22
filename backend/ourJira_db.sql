@@ -37,6 +37,8 @@ CREATE TABLE `backlog_items` (
   `story_points` int(11) DEFAULT 0,
   `priority` enum('CRITICAL','HIGH','MEDIUM','LOW') DEFAULT 'MEDIUM',
   `tags` text DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `is_blocked` tinyint(1) DEFAULT 0,
   `status` enum('BACKLOG','TODO','IN_PROGRESS','DONE') DEFAULT 'BACKLOG',
   `position` int(11) NOT NULL DEFAULT 0,
   `assigned_to_id` char(36) DEFAULT NULL,
@@ -501,6 +503,8 @@ SELECT uuid(), p.id, 'Done', 3, NULL FROM projects p;
 ALTER TABLE `backlog_items` MODIFY COLUMN `type` enum('USER_STORY','BUG','TECHNICAL_TASK','IMPROVEMENT') DEFAULT 'USER_STORY';
 ALTER TABLE `backlog_items` MODIFY COLUMN `priority` enum('CRITICAL','HIGH','MEDIUM','LOW') DEFAULT 'MEDIUM';
 ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `tags` text DEFAULT NULL;
+ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `due_date` date DEFAULT NULL;
+ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `is_blocked` tinyint(1) DEFAULT 0;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

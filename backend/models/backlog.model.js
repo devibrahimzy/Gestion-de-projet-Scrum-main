@@ -95,6 +95,16 @@ exports.findAllBySprint = (sprintId, filters = {}) => {
         params.push(filters.type);
     }
 
+    if (filters.priority) {
+        sql += " AND priority = ?";
+        params.push(filters.priority);
+    }
+
+    if (filters.tags) {
+        sql += " AND JSON_CONTAINS(tags, JSON_QUOTE(?))";
+        params.push(filters.tags);
+    }
+
     sql += " ORDER BY status, position ASC";
     return db.query(sql, params);
 };
@@ -107,10 +117,10 @@ exports.getMaxPosition = (sprintId, status) => {
 };
 
 exports.create = (item) => {
-    const { id, project_id, sprint_id, title, description, type, story_points, priority, tags, status, position, assigned_to_id, created_by_id } = item;
+    const { id, project_id, sprint_id, title, description, type, story_points, priority, tags, due_date, is_blocked, status, position, assigned_to_id, created_by_id } = item;
     return db.query(
-        "INSERT INTO backlog_items (id, project_id, sprint_id, title, description, type, story_points, priority, tags, status, position, assigned_to_id, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, project_id, sprint_id, title, description, type || 'USER_STORY', story_points || 0, priority || 'MEDIUM', tags ? JSON.stringify(tags) : null, status || 'BACKLOG', position || 0, assigned_to_id, created_by_id]
+        "INSERT INTO backlog_items (id, project_id, sprint_id, title, description, type, story_points, priority, tags, due_date, is_blocked, status, position, assigned_to_id, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, project_id, sprint_id, title, description, type || 'USER_STORY', story_points || 0, priority || 'MEDIUM', tags ? JSON.stringify(tags) : null, due_date, is_blocked || 0, status || 'BACKLOG', position || 0, assigned_to_id, created_by_id]
     );
 };
 

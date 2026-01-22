@@ -1,5 +1,6 @@
 const Retro = require("../models/retrospective.model");
 const { v4: uuid } = require("uuid");
+const PDFDocument = require('pdfkit');
 
 exports.getRetroBySprint = async (req, res) => {
     try {
@@ -117,5 +118,53 @@ exports.updateItemStatus = async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ message: "Error updating action item", error: err.message });
+    }
+};
+
+exports.exportRetrospectivePDF = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [rows] = await Retro.findBySprintId(id);
+        if (rows.length === 0) return res.status(404).json({ message: "Retrospective not found" });
+
+        const retro = rows[0];
+        const [items] = await Retro.findItemsByRetroId(retro.id);
+
+        // Create PDF
+        const doc = new PDFDocument();
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=retrospective-${retro.date}.pdf`);
+
+        doc.pipe(res);
+
+        // Title
+        doc.fontSize(20).text('Retrospective Report', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(14).text(`Date: ${retro.date}`);
+        doc.text(`Sprint: ${retro.sprint_id}`);
+        doc.text(`Status: ${retro.status}`);
+        doc.moveDown();
+
+        // Items by category
+        const categories = ['POSITIVE', 'IMPROVE', 'ACTION'];
+        categories.forEach(category => {
+            const catItems = items.filter(item => item.category === category);
+            if (catItems.length > 0) {
+                doc.fontSize(16).text(`${category}:`, { underline: true });
+                doc.moveDown(0.5);
+                catItems.forEach(item => {
+                    doc.fontSize(12).text(`• ${item.text} (Votes: ${item.votes})`);
+                    if (item.is_completed !== null) {
+                        doc.text(`  Status: ${item.is_completed ? 'Completed' : 'Pending'}`);
+                    }
+                });
+                doc.moveDown();
+            }
+        });
+
+        doc.end();
+    } catch (err) {
+        res.status(500).json({ message: "Error generating PDF", error: err.message });
     }
 };
