@@ -42,6 +42,7 @@ export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 // Reset Password Validation Schema
 export const resetPasswordSchema = z
   .object({
+    code: z.string().min(6, "Reset code must be 6 characters").max(6, "Reset code must be 6 characters"),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")

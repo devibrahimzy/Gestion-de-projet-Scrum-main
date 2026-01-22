@@ -25,6 +25,16 @@ const sendVerificationEmail = async (email, code) => {
   await transporter.sendMail(mailOptions);
 };
 
+const sendPasswordResetEmail = async (email, code) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Reset Your Password',
+    text: `Your password reset code is: ${code}. This code will expire in 1 hour.`,
+  };
+  await transporter.sendMail(mailOptions);
+};
+
 const sendInvitationEmail = async (email, link, role) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
@@ -133,39 +143,47 @@ exports.forgotPassword = async (req, res) => {
   const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
   if (rows.length === 0) return res.status(404).json({ message: "Email not found" });
 
-  const token = crypto.randomBytes(32).toString("hex"); // PAS besoin de bcrypt.hash ici
+  const resetCode = crypto.randomBytes(3).toString('hex').toUpperCase(); // 6-character code
   const expires = new Date(Date.now() + 3600 * 1000); // 1h expiration
 
   await db.query(
-    "UPDATE users SET resetToken = ?, resetTokenExpires = ? WHERE email = ?",
-    [token, expires, email]
+    "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?",
+    [resetCode, expires, email]
   );
 
-  res.json({ message: "Reset token generated", token }); // pour test on renvoie le token
+  // Send password reset email
+  try {
+    await sendPasswordResetEmail(email, resetCode);
+  } catch (error) {
+    console.error('Error sending email:', error);
+    // Still return success, but log error
+  }
+
+  res.json({ message: "Password reset code sent to your email" });
 };
 
 exports.resetPassword = async (req, res) => {
-  const { token, newPassword } = req.body;
+  const { email, code, newPassword } = req.body;
 
-  if (!token || !newPassword) {
-    return res.status(400).json({ message: "Token and new password required" });
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ message: "Email, code and new password required" });
   }
 
   const [rows] = await db.query(
-    "SELECT * FROM users WHERE resetToken = ? AND resetTokenExpires > NOW()",
-    [token]
+    "SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expires > NOW()",
+    [email, code]
   );
 
   const user = rows[0];
 
   if (!user) {
-    return res.status(400).json({ message: "Invalid or expired token" });
+    return res.status(400).json({ message: "Invalid or expired reset code" });
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   await db.query(
-    "UPDATE users SET password = ?, resetToken = NULL, resetTokenExpires = NULL WHERE id = ?",
+    "UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
     [hashedPassword, user.id]
   );
 

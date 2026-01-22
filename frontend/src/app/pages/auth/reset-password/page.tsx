@@ -14,9 +14,10 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const email = searchParams.get("email");
 
   const [formData, setFormData] = useState<ResetPasswordFormData>({
+    code: "",
     password: "",
     confirmPassword: "",
   });
@@ -45,11 +46,11 @@ export default function ResetPasswordPage() {
     setErrors({});
     setApiError("");
 
-    if (!token) {
-      const errorMessage = "Invalid reset link. Please request a new one.";
+    if (!email) {
+      const errorMessage = "Email is required. Please go back to forgot password.";
       setApiError(errorMessage);
       toast({
-        title: "Invalid Link",
+        title: "Missing Email",
         description: errorMessage,
         variant: "destructive",
       });
@@ -75,7 +76,7 @@ export default function ResetPasswordPage() {
 
     try {
       setIsLoading(true);
-      await authService.resetPassword(token, formData.password);
+      await authService.resetPassword(formData.code, formData.password, email);
 
       setSuccess(true);
       toast({
@@ -102,7 +103,7 @@ export default function ResetPasswordPage() {
     }
   };
 
-  if (!token) {
+  if (!email) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-muted animate-fade-in">
         <div className="w-full max-w-md">
@@ -110,12 +111,12 @@ export default function ResetPasswordPage() {
             <CardHeader>
               <CardTitle className="text-2xl">Invalid Link</CardTitle>
               <CardDescription>
-                This password reset link is invalid or expired.
+                Email parameter is missing. Please go back to forgot password.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link to="/auth/forgot-password" className="inline-block w-full">
-                <Button className="w-full">Request New Link</Button>
+                <Button className="w-full">Request Reset Code</Button>
               </Link>
             </CardContent>
           </Card>
@@ -132,15 +133,15 @@ export default function ResetPasswordPage() {
             Reset Password
           </h1>
           <p className="text-muted-foreground">
-            Enter your new password below
+            Enter the reset code from your email and your new password
           </p>
         </div>
 
         <Card className="border shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl">New Password</CardTitle>
+            <CardTitle className="text-2xl">Reset Password</CardTitle>
             <CardDescription>
-              Make sure it's at least 8 characters long with uppercase, lowercase, and numbers
+              Enter the 6-character code sent to {email} and choose a new password
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -159,6 +160,29 @@ export default function ResetPasswordPage() {
                   </AlertDescription>
                 </Alert>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="code" className="text-sm font-medium">
+                  Reset Code
+                </Label>
+                <Input
+                  id="code"
+                  name="code"
+                  type="text"
+                  value={formData.code}
+                  onChange={handleChange}
+                  placeholder="ABC123"
+                  disabled={isLoading || success}
+                  className={`transition-colors text-center tracking-widest uppercase ${
+                    errors.code ? "border-red-500" : ""
+                  }`}
+                  maxLength={6}
+                  required
+                />
+                {errors.code && (
+                  <p className="text-sm text-red-500">{errors.code}</p>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">

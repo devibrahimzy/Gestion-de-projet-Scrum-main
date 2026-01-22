@@ -27,10 +27,10 @@ export const authService = {
         return response.data;
     },
 
-resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
-    const response = await api.post<{ message: string }>("auth/reset-password", { token, newPassword });
+ resetPassword: async (code: string, newPassword: string, email: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>("auth/reset-password", { code, newPassword, email });
     return response.data;
-},
+ },
 
 verifyEmail: async (email: string, code: string): Promise<{ message: string }> => {
     const response = await api.post<{ message: string }>("auth/verify", { email, code });

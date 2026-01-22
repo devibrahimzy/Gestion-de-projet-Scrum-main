@@ -499,6 +499,10 @@ ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `failed_attempts` int(11) DEFAULT 0
 ADD COLUMN IF NOT EXISTS `lock_until` datetime DEFAULT NULL,
 ADD COLUMN IF NOT EXISTS `profile_photo` varchar(255) DEFAULT NULL;
 
+-- Add columns for password reset
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `reset_token` varchar(255) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS `reset_token_expires` timestamp NULL DEFAULT NULL;
+
 -- Add columns for project details
 ALTER TABLE `projects` ADD COLUMN IF NOT EXISTS `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
 ADD COLUMN IF NOT EXISTS `sprint_duration` int(11) DEFAULT 2,

@@ -229,15 +229,15 @@ CREATE TABLE `users` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `isActive` tinyint(1) DEFAULT 1,
   `lastLogin` datetime DEFAULT NULL,
-  `resetToken` varchar(255) DEFAULT NULL,
-  `resetTokenExpires` datetime DEFAULT NULL
+  `reset_token` varchar(255) DEFAULT NULL,
+  `reset_token_expires` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `email`, `password`, `first_name`, `last_name`, `role`, `created_at`, `updated_at`, `isActive`, `lastLogin`, `resetToken`, `resetTokenExpires`) VALUES
+INSERT INTO `users` (`id`, `email`, `password`, `first_name`, `last_name`, `role`, `created_at`, `updated_at`, `isActive`, `lastLogin`, `reset_token`, `reset_token_expires`) VALUES
 ('146fae23-ddf1-4a3f-a39f-d8f525602964', 'bono@ourscrum.com', '$2b$10$0mOLfqBq665hRAmgbV2sXOA.jyk1C5eYmqjjZiDd7KrswN7MXQoGy', 'yassine', 'bono', 'TEAM_MEMBER', '2026-01-15 02:49:44', '2026-01-15 16:01:16', 1, NULL, NULL, NULL),
 ('4b3d65cd-0369-40f0-b18b-34d0c46c143d', 'test@ourscrum.com', '$2b$10$C/.MlCXoC9pIDS0o2fbME.glC.ueT9f91DiC4uZw27qd6TIN6KHCW', 'Test', 'User', 'TEAM_MEMBER', '2026-01-13 11:23:24', '2026-01-13 11:23:24', 1, NULL, NULL, NULL),
 ('55e350e5-9252-46d9-87c6-56fd183408ad', 'NAYEL@ourscrum.com', '$2b$10$AatRGL7HGOT25PdOOUJchuOzdzrDU07YryOiqi7UTXakhy7aK7yCK', 'NAYEL', 'EUNAOUI', 'SCRUM_MASTER', '2026-01-15 13:56:35', '2026-01-15 13:56:35', 1, NULL, NULL, NULL),

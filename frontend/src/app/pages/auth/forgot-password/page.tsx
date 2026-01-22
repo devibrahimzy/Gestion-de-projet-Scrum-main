@@ -39,16 +39,16 @@ export default function ForgotPasswordPage() {
       setIsLoading(true);
       await authService.forgotPassword(email);
 
-      setSuccess(true);
-      toast({
-        title: "Success",
-        description: "Password reset link sent to your email!",
-        variant: "default",
-      });
+       setSuccess(true);
+       toast({
+         title: "Success",
+         description: "Password reset code sent to your email!",
+         variant: "default",
+       });
 
-      setTimeout(() => {
-        navigate("/auth/login");
-      }, 3000);
+       setTimeout(() => {
+         navigate(`/auth/reset-password?email=${encodeURIComponent(email)}`);
+       }, 3000);
     } catch (err: any) {
       const errorMessage =
         err?.response?.data?.message ||
@@ -79,9 +79,9 @@ export default function ForgotPasswordPage() {
         <Card className="border shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl">Reset Password</CardTitle>
-            <CardDescription>
-              We'll send you a link to reset your password
-            </CardDescription>
+          <CardDescription>
+            We'll send you a code to reset your password
+          </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -91,11 +91,11 @@ export default function ForgotPasswordPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              {success && (
+               {success && (
                 <Alert className="border-green-200 bg-green-50 dark:bg-green-950 animate-fade-up">
                   <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <AlertDescription className="text-green-700 dark:text-green-300">
-                    Password reset link has been sent to your email!
+                    Password reset code has been sent to your email!
                   </AlertDescription>
                 </Alert>
               )}
@@ -124,7 +124,7 @@ export default function ForgotPasswordPage() {
                 className="w-full"
                 disabled={isLoading || !email || success}
               >
-                {isLoading ? "Sending..." : "Send Reset Link"}
+                {isLoading ? "Sending..." : "Send Reset Code"}
               </Button>
             </form>
 
