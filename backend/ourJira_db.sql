@@ -242,7 +242,7 @@ CREATE TABLE `projects` (
   `description` text DEFAULT NULL,
   `start_date` date DEFAULT NULL,
   `end_date` date DEFAULT NULL,
-  `status` enum('PLANNING','ACTIVE','COMPLETED') DEFAULT 'PLANNING',
+  `status` enum('PLANNING','ACTIVE','COMPLETED','ARCHIVED') DEFAULT 'PLANNING',
   `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
   `sprint_duration` int(11) DEFAULT 2,
   `objectives` text DEFAULT NULL,
@@ -514,6 +514,9 @@ ADD COLUMN IF NOT EXISTS `reset_token_expires` timestamp NULL DEFAULT NULL;
 ALTER TABLE `projects` ADD COLUMN IF NOT EXISTS `methodology` enum('SCRUM','KANBAN') DEFAULT 'SCRUM',
 ADD COLUMN IF NOT EXISTS `sprint_duration` int(11) DEFAULT 2,
 ADD COLUMN IF NOT EXISTS `objectives` text DEFAULT NULL;
+
+-- Update status enum to include ARCHIVED
+ALTER TABLE `projects` MODIFY COLUMN `status` enum('PLANNING','ACTIVE','COMPLETED','ARCHIVED') DEFAULT 'PLANNING';
 
 -- Add objective to sprints
 ALTER TABLE `sprints` ADD COLUMN IF NOT EXISTS `objective` text DEFAULT NULL;

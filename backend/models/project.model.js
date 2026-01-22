@@ -87,11 +87,24 @@ exports.softDelete = (id) => {
     );
 };
 
-exports.update = (id, project, userId) => {
-    const { name, description, start_date, end_date, methodology, sprint_duration, objectives, status, isActive } = project;
+exports.update = (id, updates, userId) => {
+    const fields = [];
+    const values = [];
+    if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+    if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+    if (updates.start_date !== undefined) { fields.push('start_date = ?'); values.push(updates.start_date); }
+    if (updates.end_date !== undefined) { fields.push('end_date = ?'); values.push(updates.end_date); }
+    if (updates.methodology !== undefined) { fields.push('methodology = ?'); values.push(updates.methodology); }
+    if (updates.sprint_duration !== undefined) { fields.push('sprint_duration = ?'); values.push(updates.sprint_duration); }
+    if (updates.objectives !== undefined) { fields.push('objectives = ?'); values.push(updates.objectives); }
+    if (updates.status !== undefined) { fields.push('status = ?'); values.push(updates.status); }
+    if (updates.isActive !== undefined) { fields.push('isActive = ?'); values.push(updates.isActive); }
+    if (fields.length === 0) return; // No updates
+    fields.push('updated_at = NOW()');
+    values.push(id);
     return db.query(
-        "UPDATE projects SET name = ?, description = ?, start_date = ?, end_date = ?, methodology = ?, sprint_duration = ?, objectives = ?, status = ?, isActive = ?, updated_at = NOW() WHERE id = ?",
-        [name, description, start_date, end_date, methodology, sprint_duration, objectives, status, isActive, id]
+        `UPDATE projects SET ${fields.join(', ')} WHERE id = ?`,
+        values
     );
 };
 
