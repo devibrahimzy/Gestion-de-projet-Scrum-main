@@ -74,8 +74,14 @@ export default function LoginPage() {
         navigate("/projects");
       }
     } catch (err: any) {
-      const errorMessage =
+      let errorMessage =
         err?.response?.data?.message || err?.message || "Login failed. Please try again.";
+
+      // Handle unverified account
+      if (errorMessage.includes("not verified")) {
+        errorMessage = "Your account is not verified. Please check your email for the verification code.";
+      }
+
       setApiError(errorMessage);
       toast({
         title: "Login Failed",

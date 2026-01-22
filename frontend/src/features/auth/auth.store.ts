@@ -16,6 +16,9 @@ interface AuthState {
     getProfile: () => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
     resetPassword: (token: string, newPassword: string) => Promise<void>;
+    verifyEmail: (email: string, code: string) => Promise<void>;
+    changeEmail: (newEmail: string) => Promise<void>;
+    changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
     setError: (error: string | null) => void;
     clearError: () => void;
     restoreSession: () => void;
@@ -115,6 +118,42 @@ getProfile: async () => {
             set({ isLoading: false });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Failed to reset password";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    verifyEmail: async (email: string, code: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.verifyEmail(email, code);
+            set({ isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to verify email";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    changeEmail: async (newEmail: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.changeEmail(newEmail);
+            set({ isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to change email";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
+
+    changePassword: async (oldPassword: string, newPassword: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            await authService.changePassword(oldPassword, newPassword);
+            set({ isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to change password";
             set({ error: errorMessage, isLoading: false });
             throw err;
         }

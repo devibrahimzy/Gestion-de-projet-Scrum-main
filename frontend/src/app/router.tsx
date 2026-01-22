@@ -6,6 +6,7 @@ import DashboardLayout from "../shared/layout/DashboardLayout";
 import ProjectLayout from "../shared/layout/ProjectLayout";
 import LoginPage from "./pages/auth/login/page";
 import RegisterPage from "./pages/auth/register/page";
+import VerifyEmailPage from "./pages/auth/verify-email/page";
 import ForgotPasswordPage from "./pages/auth/forgot-password/page";
 import ResetPasswordPage from "./pages/auth/reset-password/page";
 import AdminUsersPage from "./pages/admin/users/page";
@@ -30,6 +31,7 @@ export const AppRouter: React.FC = () => {
         {/* 🔓 PUBLIC ROUTES */}
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/register" element={<RegisterPage />} />
+        <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
         

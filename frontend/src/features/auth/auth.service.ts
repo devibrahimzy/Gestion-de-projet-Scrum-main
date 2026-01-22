@@ -28,9 +28,24 @@ export const authService = {
     },
 
 resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
-        const response = await api.post<{ message: string }>("auth/reset-password", { token, newPassword });
-        return response.data;
-    },
+    const response = await api.post<{ message: string }>("auth/reset-password", { token, newPassword });
+    return response.data;
+},
+
+verifyEmail: async (email: string, code: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>("auth/verify", { email, code });
+    return response.data;
+},
+
+changeEmail: async (newEmail: string): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }>("auth/change-email", { new_email: newEmail });
+    return response.data;
+},
+
+changePassword: async (oldPassword: string, newPassword: string): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }>("auth/change-password", { old_password: oldPassword, new_password: newPassword });
+    return response.data;
+},
 
     
 };
