@@ -494,7 +494,7 @@ export default function AnalyticsPage() {
                   ) : 'N/A'}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Std dev: {healthIndicators?.velocity_stddev?.toFixed(1) || 'N/A'}
+                  Std dev: {Number(healthIndicators?.velocity_stddev || 0).toFixed(1) || 'N/A'}
                 </p>
               </CardContent>
             </Card>
@@ -565,13 +565,13 @@ export default function AnalyticsPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Average Velocity</span>
-                      <span className="text-sm font-medium">{healthIndicators?.avg_velocity?.toFixed(1) || 'N/A'}</span>
+                      <span className="text-sm font-medium">{Number(healthIndicators?.avg_velocity || 0).toFixed(1) || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Standard Deviation</span>
-                      <span className="text-sm font-medium">{healthIndicators?.velocity_stddev?.toFixed(1) || 'N/A'}</span>
+                      <span className="text-sm font-medium">{Number(healthIndicators?.velocity_stddev || 0).toFixed(1) || 'N/A'}</span>
                     </div>
                   </div>
                 </div>

@@ -23,7 +23,7 @@ export default function SprintHistoryPage() {
     const { id: projectId } = useParams<{ id: string }>();
     const { toast } = useToast();
 
-    const [completedSprints, setCompletedSprints] = useState<SprintHistory[]>([]);
+    const [historicalSprints, setHistoricalSprints] = useState<SprintHistory[]>([]);
     const [velocityData, setVelocityData] = useState<VelocityChartData | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -32,13 +32,13 @@ export default function SprintHistoryPage() {
         try {
             setLoading(true);
 
-            // Get completed sprints
+            // Get all sprints except currently active one
             const sprints = await sprintsService.getByProject(projectId);
-            const completedSprints = sprints.filter(s => s.status === 'COMPLETED');
+            const historySprints = sprints.filter(s => s.status !== 'ACTIVE');
 
-            // Fetch items for each completed sprint and calculate completed/pending counts
+            // Fetch items for each sprint and calculate completed/pending counts
             const completed = await Promise.all(
-                completedSprints.map(async (sprint) => {
+                historySprints.map(async (sprint) => {
                     try {
                         const items = await backlogService.getBySprint(sprint.id);
                         const completed_items = items.filter(item => item.status === 'DONE').length;
@@ -50,7 +50,7 @@ export default function SprintHistoryPage() {
                             objective: sprint.objective,
                             start_date: sprint.start_date,
                             end_date: sprint.end_date,
-                            status: sprint.status,
+                            status: sprint.status as 'PLANNING' | 'COMPLETED',
                             planned_velocity: sprint.planned_velocity,
                             actual_velocity: sprint.actual_velocity,
                             completed_items,
@@ -64,7 +64,7 @@ export default function SprintHistoryPage() {
                             objective: sprint.objective,
                             start_date: sprint.start_date,
                             end_date: sprint.end_date,
-                            status: sprint.status,
+                            status: sprint.status as 'PLANNING' | 'COMPLETED',
                             planned_velocity: sprint.planned_velocity,
                             actual_velocity: sprint.actual_velocity,
                             completed_items: 0,
@@ -76,7 +76,7 @@ export default function SprintHistoryPage() {
 
             const completedSorted = completed.sort((a, b) => new Date(b.end_date || 0).getTime() - new Date(a.end_date || 0).getTime());
 
-            setCompletedSprints(completedSorted);
+            setHistoricalSprints(completedSorted);
 
             // Get velocity chart data
             if (completedSorted.length > 0) {
@@ -96,11 +96,11 @@ export default function SprintHistoryPage() {
 
     if (loading) return <div className="flex justify-center items-center h-64">Loading sprint history...</div>;
 
-    const totalSprints = completedSprints.length;
+    const totalSprints = historicalSprints.length;
     const avgVelocity = totalSprints > 0
-        ? completedSprints.reduce((sum, s) => sum + (s.actual_velocity || 0), 0) / totalSprints
+        ? historicalSprints.reduce((sum, s) => sum + (s.actual_velocity || 0), 0) / totalSprints
         : 0;
-    const totalStoryPoints = completedSprints.reduce((sum, s) => sum + (s.actual_velocity || 0), 0);
+    const totalStoryPoints = historicalSprints.reduce((sum, s) => sum + (s.actual_velocity || 0), 0);
 
     return (
         <div className="container mx-auto py-8">
@@ -117,7 +117,7 @@ export default function SprintHistoryPage() {
                             <History className="mr-2 h-8 w-8" />
                             Sprint History
                         </h1>
-                        <p className="text-gray-600">Review completed sprints and team performance</p>
+                        <p className="text-gray-600">Review historical sprints and team performance</p>
                     </div>
                 </div>
             </div>
@@ -160,7 +160,7 @@ export default function SprintHistoryPage() {
                         <div>
                             <p className="text-sm font-medium text-gray-600">Latest Sprint</p>
                             <p className="text-lg font-bold">
-                                {completedSprints[0]?.name || 'None'}
+                                {historicalSprints[0]?.name || 'None'}
                             </p>
                         </div>
                     </CardContent>
@@ -197,7 +197,7 @@ export default function SprintHistoryPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {completedSprints.slice(0, 5).map((sprint) => {
+                            {historicalSprints.slice(0, 5).map((sprint) => {
                                 const efficiency = sprint.planned_velocity && sprint.actual_velocity
                                     ? (sprint.actual_velocity / sprint.planned_velocity) * 100
                                     : 0;
@@ -229,7 +229,7 @@ export default function SprintHistoryPage() {
                                     </div>
                                 );
                             })}
-                            {completedSprints.length === 0 && (
+                            {historicalSprints.length === 0 && (
                                 <p className="text-gray-500 text-center py-8">
                                     No completed sprints yet.
                                 </p>
@@ -242,9 +242,9 @@ export default function SprintHistoryPage() {
             {/* Detailed Sprint History Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Completed Sprints Details</CardTitle>
+                    <CardTitle>Sprint History Details</CardTitle>
                     <CardDescription>
-                        Detailed view of all completed sprints
+                        Detailed view of all historical sprints
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -261,7 +261,7 @@ export default function SprintHistoryPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {completedSprints.map((sprint) => {
+                            {historicalSprints.map((sprint) => {
                                 const efficiency = sprint.planned_velocity && sprint.actual_velocity
                                     ? (sprint.actual_velocity / sprint.planned_velocity) * 100
                                     : 0;
@@ -305,7 +305,7 @@ export default function SprintHistoryPage() {
                         </TableBody>
                     </Table>
 
-                    {completedSprints.length === 0 && (
+                    {historicalSprints.length === 0 && (
                         <div className="text-center py-8 text-gray-500">
                             <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No completed sprints to display.</p>

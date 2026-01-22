@@ -77,7 +77,7 @@ export interface SprintHistory {
     objective?: string;
     start_date?: string;
     end_date?: string;
-    status: 'COMPLETED';
+    status: 'PLANNING' | 'COMPLETED';
     planned_velocity?: number;
     actual_velocity?: number;
     completed_items: number;

@@ -52,7 +52,7 @@ export const sprintsService = {
     },
 
     getVelocityChart: async (projectId: string): Promise<VelocityChartData> => {
-        const response = await api.get<VelocityChartData>("/sprints/velocity", { params: { projectId } });
+        const response = await api.get<VelocityChartData>("/sprints/velocity-chart", { params: { projectId } });
         return response.data;
     },
 
