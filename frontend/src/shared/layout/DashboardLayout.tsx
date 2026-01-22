@@ -10,7 +10,7 @@ export const DashboardLayout: React.FC = () => {
         
         <SidebarInset>
           <AppTopbar />
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="">
             <Outlet />
           </main>
         </SidebarInset>

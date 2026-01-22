@@ -606,65 +606,65 @@ export default function KanbanBoardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div>
-                                <Label>Assignee</Label>
-                                <Select
-                                    value={filters.assigned_to_id || ""}
-                                    onValueChange={(value) =>
-                                        handleFilterChange({ assigned_to_id: value || undefined })
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="All assignees" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">All assignees</SelectItem>
-                                        {/* TODO: Populate with actual team members */}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                             <div>
+                                 <Label>Assignee</Label>
+                                 <Select
+                                     value={filters.assigned_to_id || "all"}
+                                     onValueChange={(value) =>
+                                         handleFilterChange({ assigned_to_id: value === "all" ? undefined : value })
+                                     }
+                                 >
+                                     <SelectTrigger>
+                                         <SelectValue placeholder="All assignees" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         <SelectItem value="all">All assignees</SelectItem>
+                                         {/* TODO: Populate with actual team members */}
+                                     </SelectContent>
+                                 </Select>
+                             </div>
 
-                            <div>
-                                <Label>Type</Label>
-                                <Select
-                                    value={filters.type || ""}
-                                    onValueChange={(value) =>
-                                        handleFilterChange({ type: value || undefined })
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="All types" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">All types</SelectItem>
-                                        <SelectItem value="USER_STORY">User Story</SelectItem>
-                                        <SelectItem value="BUG">Bug</SelectItem>
-                                        <SelectItem value="TECHNICAL_TASK">Technical Task</SelectItem>
-                                        <SelectItem value="IMPROVEMENT">Improvement</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                             <div>
+                                 <Label>Type</Label>
+                                 <Select
+                                     value={filters.type || "all"}
+                                     onValueChange={(value) =>
+                                         handleFilterChange({ type: value === "all" ? undefined : value })
+                                     }
+                                 >
+                                     <SelectTrigger>
+                                         <SelectValue placeholder="All types" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         <SelectItem value="all">All types</SelectItem>
+                                         <SelectItem value="USER_STORY">User Story</SelectItem>
+                                         <SelectItem value="BUG">Bug</SelectItem>
+                                         <SelectItem value="TECHNICAL_TASK">Technical Task</SelectItem>
+                                         <SelectItem value="IMPROVEMENT">Improvement</SelectItem>
+                                     </SelectContent>
+                                 </Select>
+                             </div>
 
-                            <div>
-                                <Label>Priority</Label>
-                                <Select
-                                    value={filters.priority || ""}
-                                    onValueChange={(value) =>
-                                        handleFilterChange({ priority: value || undefined })
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="All priorities" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">All priorities</SelectItem>
-                                        <SelectItem value="CRITICAL">Critical</SelectItem>
-                                        <SelectItem value="HIGH">High</SelectItem>
-                                        <SelectItem value="MEDIUM">Medium</SelectItem>
-                                        <SelectItem value="LOW">Low</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                             <div>
+                                 <Label>Priority</Label>
+                                 <Select
+                                     value={filters.priority || "all"}
+                                     onValueChange={(value) =>
+                                         handleFilterChange({ priority: value === "all" ? undefined : value })
+                                     }
+                                 >
+                                     <SelectTrigger>
+                                         <SelectValue placeholder="All priorities" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                         <SelectItem value="all">All priorities</SelectItem>
+                                         <SelectItem value="CRITICAL">Critical</SelectItem>
+                                         <SelectItem value="HIGH">High</SelectItem>
+                                         <SelectItem value="MEDIUM">Medium</SelectItem>
+                                         <SelectItem value="LOW">Low</SelectItem>
+                                     </SelectContent>
+                                 </Select>
+                             </div>
 
                             <div className="flex items-end">
                                 <Button
