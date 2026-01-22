@@ -53,7 +53,7 @@ exports.verifyAccount = (email, code) => {
 
 exports.getProfile = (id) => {
     return db.query(`
-        SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.created_at, u.isActive, u.lastLogin, u.profile_photo,
+        SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.created_at, u.is_active as isActive, u.lastLogin, u.profile_photo,
                GROUP_CONCAT(p.name SEPARATOR ', ') as projects
         FROM users u
         LEFT JOIN project_members pm ON u.id = pm.user_id

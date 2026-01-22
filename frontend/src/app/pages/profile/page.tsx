@@ -78,9 +78,6 @@ export default function ProfilePage() {
             const updatedUser = { ...user, ...updateData };
             setUser(updatedUser);
 
-            // Update localStorage
-            localStorage.setItem("authUser", JSON.stringify(updatedUser));
-
             toast({ title: "Profile updated successfully!" });
             setIsEditing(false);
         } catch (error) {

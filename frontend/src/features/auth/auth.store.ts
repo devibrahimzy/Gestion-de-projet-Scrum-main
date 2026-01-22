@@ -19,6 +19,7 @@ interface AuthState {
     verifyEmail: (email: string, code: string) => Promise<void>;
     changeEmail: (newEmail: string) => Promise<void>;
     changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+    setUser: (user: User | null) => void;
     setError: (error: string | null) => void;
     clearError: () => void;
     restoreSession: () => void;
@@ -83,21 +84,17 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
     },
 
-    // Inside your useAuthStore create block:
-getProfile: async () => {
-    set({ isLoading: true, error: null });
-    try {
-        const response: any = await authService.getProfile();
-        // CHANGE THIS LINE: Access the .user property from the response
-        const userData = response.user ? response.user : response; 
-        
-        set({ user: userData, isLoading: false });
-    } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to fetch profile";
-        set({ error: errorMessage, isLoading: false });
-        throw err;
-    }
-},
+    getProfile: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            const userData: User = await authService.getProfile();
+            set({ user: userData, isLoading: false });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to fetch profile";
+            set({ error: errorMessage, isLoading: false });
+            throw err;
+        }
+    },
 
     forgotPassword: async (email: string) => {
         set({ isLoading: true, error: null });
@@ -161,6 +158,15 @@ getProfile: async () => {
             const errorMessage = err instanceof Error ? err.message : "Failed to change password";
             set({ error: errorMessage, isLoading: false });
             throw err;
+        }
+    },
+
+    setUser: (user: User | null) => {
+        set({ user });
+        if (user) {
+            localStorage.setItem("authUser", JSON.stringify(user));
+        } else {
+            localStorage.removeItem("authUser");
         }
     },
 

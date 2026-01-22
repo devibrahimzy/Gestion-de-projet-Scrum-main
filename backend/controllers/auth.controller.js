@@ -127,7 +127,9 @@ exports.login = async (req, res) => {
     user: {
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      is_verified: user.is_verified,
+      isActive: user.is_active || true // Default to true if not set
     }
   });
 };

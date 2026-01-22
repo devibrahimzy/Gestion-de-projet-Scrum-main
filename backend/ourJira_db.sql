@@ -360,10 +360,14 @@ CREATE TABLE `users` (
    `failed_attempts` INT DEFAULT 0,
    `lock_until` TIMESTAMP NULL DEFAULT NULL,
 
-   -- Last login tracking
-   `lastLogin` TIMESTAMP NULL DEFAULT NULL,
+    -- Last login tracking
+    `lastLogin` TIMESTAMP NULL DEFAULT NULL,
 
-   PRIMARY KEY (`id`)
+    -- Timestamps
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`id`)
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_general_ci;
@@ -516,6 +520,10 @@ ALTER TABLE `sprints` ADD COLUMN IF NOT EXISTS `objective` text DEFAULT NULL;
 
 -- Add lastLogin to users
 ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `lastLogin` TIMESTAMP NULL DEFAULT NULL;
+
+-- Add timestamps to users
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 
 -- Insert default Kanban columns for existing projects
 INSERT IGNORE INTO kanban_columns (id, project_id, name, position, wip_limit)

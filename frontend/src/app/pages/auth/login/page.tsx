@@ -67,8 +67,8 @@ export default function LoginPage() {
         description: "Logged in successfully! Redirecting...",
         variant: "default",
       });
-      const authUser = useAuthStore.getState().user;
-      if(authUser?.role === 'ADMIN'){
+      // Redirect based on user role
+      if(user?.role === 'ADMIN'){
         navigate('/admin')
       }else{
         navigate("/projects");
