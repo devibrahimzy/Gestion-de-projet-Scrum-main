@@ -329,7 +329,7 @@ export default function SprintsPage() {
                             <TableHead>Start Date</TableHead>
                             <TableHead>End Date</TableHead>
                             <TableHead>Capacity</TableHead>
-                            <TableHead>Velocity</TableHead>
+                            
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -370,7 +370,6 @@ export default function SprintsPage() {
                                     <TableCell>{sprint.start_date ? format(new Date(sprint.start_date), 'MMM dd') : 'N/A'}</TableCell>
                                     <TableCell>{sprint.end_date ? format(new Date(sprint.end_date), 'MMM dd') : 'N/A'}</TableCell>
                                     <TableCell>{sprint.planned_velocity || 'N/A'}</TableCell>
-                                    <TableCell>{sprint.actual_velocity ?? 'N/A'}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
