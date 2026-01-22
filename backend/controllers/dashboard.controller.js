@@ -23,6 +23,7 @@ exports.getProjectDashboard = async (req, res) => {
         const [[velocityComparison]] = await Dashboard.getVelocityComparison(projectId);
         const [[agileMetrics]] = await Dashboard.getAgileMetrics(projectId);
         const [sprints] = await Dashboard.getSprintOverview(projectId);
+        const [[healthIndicators]] = await Dashboard.getHealthIndicators(projectId);
 
         res.json({
             summary: mainMetrics,
@@ -31,7 +32,8 @@ exports.getProjectDashboard = async (req, res) => {
             velocity: velocityHistory,
             velocityComparison: velocityComparison || { avg_velocity: 0, current_velocity: 0 },
             agile: agileMetrics,
-            sprints: sprints
+            sprints: sprints,
+            health: healthIndicators
         });
     } catch (err) {
         res.status(500).json({ message: "Error generating dashboard", error: err.message });

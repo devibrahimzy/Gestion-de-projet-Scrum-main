@@ -1,5 +1,5 @@
 import api from "@/shared/api/client";
-import { DashboardSummary, VelocityData, AgilePerformance, BurndownData, HealthIndicators, MemberWorkload, VelocityComparison, CurrentSprint } from "./dashboard.types";
+import { DashboardSummary, VelocityData, AgilePerformance, BurndownData, HealthIndicators, MemberWorkload, VelocityComparison, CurrentSprint, AnalyticsResponse, SprintData } from "./dashboard.types";
 
 export const dashboardService = {
     getSummary: async (projectId: string): Promise<DashboardSummary> => {
@@ -39,6 +39,11 @@ export const dashboardService = {
 
     getHealthIndicators: async (projectId: string): Promise<HealthIndicators> => {
         const response = await api.get<HealthIndicators>(`/dashboard/${projectId}/health`);
+        return response.data;
+    },
+
+    getAllAnalytics: async (projectId: string): Promise<AnalyticsResponse> => {
+        const response = await api.get<AnalyticsResponse>(`/dashboard/${projectId}/analytics`);
         return response.data;
     },
 };

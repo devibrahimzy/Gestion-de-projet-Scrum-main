@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { dashboardService } from '@/features/dashboard/dashboard.service';
 import { retrospectivesService } from '@/features/retrospectives/retrospectives.service';
-import { VelocityData, AgilePerformance, MemberWorkload, HealthIndicators } from '@/features/dashboard/dashboard.types';
+import { VelocityData, AgilePerformance, MemberWorkload, HealthIndicators, AnalyticsResponse, DashboardSummary, CurrentSprint, VelocityComparison, SprintData } from '@/features/dashboard/dashboard.types';
 import { Retrospective } from '@/features/retrospectives/retrospectives.types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
@@ -34,10 +34,15 @@ interface TrendData {
 export default function AnalyticsPage() {
   const { id: projectId } = useParams<{ id: string }>();
   
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsResponse | null>(null);
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
   const [performance, setPerformance] = useState<AgilePerformance | null>(null);
   const [workload, setWorkload] = useState<MemberWorkload[]>([]);
   const [healthIndicators, setHealthIndicators] = useState<HealthIndicators | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [currentSprint, setCurrentSprint] = useState<CurrentSprint | null>(null);
+  const [velocityComparison, setVelocityComparison] = useState<VelocityComparison | null>(null);
+  const [sprints, setSprints] = useState<SprintData[]>([]);
   const [retrospectives, setRetrospectives] = useState<Retrospective[]>([]);
   const [trends, setTrends] = useState<TrendData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,19 +56,21 @@ export default function AnalyticsPage() {
         setLoading(true);
         setError(null);
 
-        const [velocityData, performanceData, workloadData, healthData, retrospectivesData, trendsData] = await Promise.all([
-          dashboardService.getVelocity(projectId),
-          dashboardService.getAgilePerformance(projectId),
-          dashboardService.getWorkload(projectId),
-          dashboardService.getHealthIndicators(projectId),
+        const [analyticsResponse, retrospectivesData, trendsData] = await Promise.all([
+          dashboardService.getAllAnalytics(projectId),
           retrospectivesService.getByProject(projectId),
           retrospectivesService.getTrends(projectId),
         ]);
 
-        setVelocity(velocityData);
-        setPerformance(performanceData);
-        setWorkload(workloadData);
-        setHealthIndicators(healthData);
+        setAnalyticsData(analyticsResponse);
+        setSummary(analyticsResponse.summary);
+        setCurrentSprint(analyticsResponse.currentSprint);
+        setWorkload(analyticsResponse.workload);
+        setVelocity(analyticsResponse.velocity);
+        setVelocityComparison(analyticsResponse.velocityComparison);
+        setPerformance(analyticsResponse.agile);
+        setHealthIndicators(analyticsResponse.health);
+        setSprints(analyticsResponse.sprints);
         setRetrospectives(retrospectivesData);
         setTrends(trendsData);
       } catch (err) {
@@ -133,20 +140,20 @@ export default function AnalyticsPage() {
 
   // Prepare velocity chart data
   const velocityChartData = velocity.map(sprint => ({
-    name: sprint.sprintName,
-    Planned: sprint.planned,
-    Actual: sprint.actual,
+    name: sprint.name,
+    Planned: sprint.planned_velocity,
+    Actual: sprint.actual_velocity,
   }));
 
   // Calculate velocity statistics
-  const avgPlannedVelocity = velocity.length > 0 
-    ? velocity.reduce((sum, sprint) => sum + sprint.planned, 0) / velocity.length 
+  const avgPlannedVelocity = velocity.length > 0
+    ? velocity.reduce((sum, sprint) => sum + sprint.planned_velocity, 0) / velocity.length
     : 0;
-  const avgActualVelocity = velocity.length > 0 
-    ? velocity.reduce((sum, sprint) => sum + sprint.actual, 0) / velocity.length 
+  const avgActualVelocity = velocity.length > 0
+    ? velocity.reduce((sum, sprint) => sum + sprint.actual_velocity, 0) / velocity.length
     : 0;
-  const velocityAccuracy = avgPlannedVelocity > 0 
-    ? (avgActualVelocity / avgPlannedVelocity) * 100 
+  const velocityAccuracy = avgPlannedVelocity > 0
+    ? (avgActualVelocity / avgPlannedVelocity) * 100
     : 0;
 
   // Prepare retrospective data
@@ -175,35 +182,311 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="velocity" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="velocity" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Velocity
-          </TabsTrigger>
-          <TabsTrigger value="workload" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Team Workload
-          </TabsTrigger>
-          <TabsTrigger value="agile" className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Agile Metrics
-          </TabsTrigger>
-          <TabsTrigger value="health" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Health Indicators
-          </TabsTrigger>
-          <TabsTrigger value="retrospectives" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Retrospectives
-          </TabsTrigger>
-          <TabsTrigger value="trends" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Trends
-          </TabsTrigger>
-        </TabsList>
+      {/* Project Summary and Current Sprint */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Project</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{summary.project_name}</div>
+              <p className="text-xs text-muted-foreground">
+                {summary.total_items} total items
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Velocity Tab */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completion</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary.total_items > 0 ? `${((summary.completed_items / summary.total_items) * 100).toFixed(1)}%` : '0%'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {summary.completed_items} of {summary.total_items} items done
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Story Points</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary.completed_story_points}/{summary.total_story_points}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Completed vs total points
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-500">{summary.overdue_items}</div>
+              <p className="text-xs text-muted-foreground">
+                Items past due date
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Current Sprint Information */}
+      {currentSprint && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Current Sprint: {currentSprint.name}
+            </CardTitle>
+            <CardDescription>
+              {new Date(currentSprint.start_date).toLocaleDateString()} - {new Date(currentSprint.end_date).toLocaleDateString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-muted-foreground">Status</div>
+                <Badge variant={currentSprint.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                  {currentSprint.status}
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-muted-foreground">Tasks</div>
+                <div className="text-lg font-bold">
+                  {currentSprint.completed_tasks}/{currentSprint.total_tasks}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-muted-foreground">Story Points</div>
+                <div className="text-lg font-bold">
+                  {currentSprint.completed_story_points}/{currentSprint.total_story_points}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-muted-foreground">Days Remaining</div>
+                <div className={`text-lg font-bold ${currentSprint.days_remaining < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                  {currentSprint.days_remaining < 0 ? `${Math.abs(currentSprint.days_remaining)} overdue` : `${currentSprint.days_remaining} left`}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+       <Tabs defaultValue="overview" className="space-y-6">
+         <TabsList>
+           <TabsTrigger value="overview" className="flex items-center gap-2">
+             <BarChart3 className="h-4 w-4" />
+             Overview
+           </TabsTrigger>
+           <TabsTrigger value="velocity" className="flex items-center gap-2">
+             <TrendingUp className="h-4 w-4" />
+             Velocity
+           </TabsTrigger>
+           <TabsTrigger value="workload" className="flex items-center gap-2">
+             <Users className="h-4 w-4" />
+             Team Workload
+           </TabsTrigger>
+           <TabsTrigger value="agile" className="flex items-center gap-2">
+             <Zap className="h-4 w-4" />
+             Agile Metrics
+           </TabsTrigger>
+           <TabsTrigger value="health" className="flex items-center gap-2">
+             <Activity className="h-4 w-4" />
+             Health Indicators
+           </TabsTrigger>
+           <TabsTrigger value="sprints" className="flex items-center gap-2">
+             <Calendar className="h-4 w-4" />
+             Sprints
+           </TabsTrigger>
+           <TabsTrigger value="retrospectives" className="flex items-center gap-2">
+             <MessageSquare className="h-4 w-4" />
+             Retrospectives
+           </TabsTrigger>
+           <TabsTrigger value="trends" className="flex items-center gap-2">
+             <Target className="h-4 w-4" />
+             Trends
+           </TabsTrigger>
+         </TabsList>
+
+         {/* Overview Tab */}
+         <TabsContent value="overview" className="space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <Card>
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                 <CardTitle className="text-sm font-medium">Lead Time</CardTitle>
+                 <GitPullRequest className="h-4 w-4 text-muted-foreground" />
+               </CardHeader>
+               <CardContent>
+                 <div className="text-2xl font-bold">
+                   {performance?.avg_lead_time_hours ? `${Number(performance.avg_lead_time_hours).toFixed(2)}h` : 'N/A'}
+                 </div>
+                 <p className="text-xs text-muted-foreground">Average lead time</p>
+               </CardContent>
+             </Card>
+
+             <Card>
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                 <CardTitle className="text-sm font-medium">Cycle Time</CardTitle>
+                 <Calendar className="h-4 w-4 text-muted-foreground" />
+               </CardHeader>
+               <CardContent>
+                 <div className="text-2xl font-bold">
+                   {performance?.avg_cycle_time_hours ? `${Number(performance.avg_cycle_time_hours).toFixed(2)}h` : 'N/A'}
+                 </div>
+                 <p className="text-xs text-muted-foreground">Average cycle time</p>
+               </CardContent>
+             </Card>
+
+             <Card>
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                 <CardTitle className="text-sm font-medium">Avg Velocity</CardTitle>
+                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
+               </CardHeader>
+               <CardContent>
+                 <div className="text-2xl font-bold">
+                   {velocityComparison?.avg_velocity ? Number(velocityComparison.avg_velocity).toFixed(2) : 'N/A'}
+                 </div>
+                 <p className="text-xs text-muted-foreground">Story points per sprint</p>
+               </CardContent>
+             </Card>
+           </div>
+
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Users className="h-5 w-5" />
+                   Team Performance
+                 </CardTitle>
+                 <CardDescription>Current sprint progress by team member</CardDescription>
+               </CardHeader>
+               <CardContent>
+                 {workload.length > 0 ? (
+                   <div className="space-y-4">
+                     {workload.slice(0, 3).map((member) => (
+                       <div key={member.id} className="flex items-center justify-between">
+                         <div>
+                           <div className="font-medium">{member.first_name} {member.last_name}</div>
+                           <div className="text-sm text-muted-foreground">
+                             {member.completed_tasks}/{member.assigned_tasks} tasks completed
+                           </div>
+                         </div>
+                         <div className="text-right">
+                           <div className="font-medium">{member.completed_story_points}/{member.total_story_points} pts</div>
+                           <div className="text-sm text-muted-foreground">
+                             {member.total_story_points > 0 ? `${((member.completed_story_points / member.total_story_points) * 100).toFixed(0)}%` : '0%'}
+                           </div>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="text-center py-8 text-muted-foreground text-sm">
+                     No team data available
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
+
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Activity className="h-5 w-5" />
+                   Sprint Overview
+                 </CardTitle>
+                 <CardDescription>Recent sprint status summary</CardDescription>
+               </CardHeader>
+               <CardContent>
+                 {sprints.length > 0 ? (
+                   <div className="space-y-4">
+                     {sprints.slice(0, 3).map((sprint, index) => (
+                       <div key={index} className="flex items-center justify-between">
+                         <div>
+                           <div className="font-medium">{sprint.name}</div>
+                           <Badge variant={sprint.status === 'ACTIVE' ? 'default' : sprint.status === 'COMPLETED' ? 'secondary' : 'outline'}>
+                             {sprint.status}
+                           </Badge>
+                         </div>
+                         <div className="text-right">
+                           <div className="font-medium">{sprint.done_tasks}/{sprint.total_tasks} tasks</div>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="text-center py-8 text-muted-foreground text-sm">
+                     No sprint data available
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
+           </div>
+         </TabsContent>
+
+         {/* Sprints Tab */}
+         <TabsContent value="sprints" className="space-y-6">
+           <Card>
+             <CardHeader>
+               <CardTitle className="flex items-center gap-2">
+                 <Calendar className="h-5 w-5" />
+                 Sprint History
+               </CardTitle>
+               <CardDescription>Overview of all project sprints</CardDescription>
+             </CardHeader>
+             <CardContent>
+               {sprints.length > 0 ? (
+                 <div className="space-y-4">
+                   {sprints.map((sprint, index) => (
+                     <div key={index} className="p-4 rounded-lg border">
+                       <div className="flex items-center justify-between mb-3">
+                         <div>
+                           <div className="font-medium">{sprint.name}</div>
+                           <Badge variant={sprint.status === 'ACTIVE' ? 'default' : sprint.status === 'COMPLETED' ? 'secondary' : 'outline'}>
+                             {sprint.status}
+                           </Badge>
+                         </div>
+                         <div className="text-right">
+                           <div className="text-sm font-medium">{sprint.done_tasks}/{sprint.total_tasks} tasks</div>
+                           <div className="text-sm text-muted-foreground">
+                             {sprint.total_tasks > 0 ? `${((sprint.done_tasks / sprint.total_tasks) * 100).toFixed(1)}%` : '0%'} complete
+                           </div>
+                         </div>
+                       </div>
+                       {sprint.total_tasks > 0 && (
+                         <div className="w-full bg-muted rounded-full h-2">
+                           <div
+                             className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                             style={{ width: `${(sprint.done_tasks / sprint.total_tasks) * 100}%` }}
+                           />
+                         </div>
+                       )}
+                     </div>
+                   ))}
+                 </div>
+               ) : (
+                 <div className="text-center py-16 text-muted-foreground text-sm">
+                   No sprint data available
+                 </div>
+               )}
+             </CardContent>
+           </Card>
+         </TabsContent>
+
+         {/* Velocity Tab */}
         <TabsContent value="velocity" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
@@ -345,31 +628,31 @@ export default function AnalyticsPage() {
         {/* Agile Metrics Tab */}
         <TabsContent value="agile" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cycle Time</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {performance?.cycleTime ? `${performance.cycleTime} days` : 'N/A'}
-                </div>
-                <p className="text-xs text-muted-foreground">Average time to complete tasks</p>
-              </CardContent>
-            </Card>
+             <Card>
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                 <CardTitle className="text-sm font-medium">Cycle Time</CardTitle>
+                 <Calendar className="h-4 w-4 text-muted-foreground" />
+               </CardHeader>
+               <CardContent>
+                 <div className="text-2xl font-bold">
+                   {performance?.avg_cycle_time_hours ? `${Number(performance.avg_cycle_time_hours).toFixed(2)} hours` : 'N/A'}
+                 </div>
+                 <p className="text-xs text-muted-foreground">Average time to complete tasks</p>
+               </CardContent>
+             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Lead Time</CardTitle>
-                <GitPullRequest className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {performance?.leadTime ? `${performance.leadTime} days` : 'N/A'}
-                </div>
-                <p className="text-xs text-muted-foreground">From request to delivery</p>
-              </CardContent>
-            </Card>
+             <Card>
+               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                 <CardTitle className="text-sm font-medium">Lead Time</CardTitle>
+                 <GitPullRequest className="h-4 w-4 text-muted-foreground" />
+               </CardHeader>
+               <CardContent>
+                 <div className="text-2xl font-bold">
+                   {performance?.avg_lead_time_hours ? `${Number(performance.avg_lead_time_hours).toFixed(2)} hours` : 'N/A'}
+                 </div>
+                 <p className="text-xs text-muted-foreground">From request to delivery</p>
+               </CardContent>
+             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -559,26 +842,26 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h4 className="font-medium">Velocity Stability</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Average Velocity</span>
-                      <span className="text-sm font-medium">{Number(healthIndicators?.avg_velocity || 0).toFixed(1) || 'N/A'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Standard Deviation</span>
-                      <span className="text-sm font-medium">{Number(healthIndicators?.velocity_stddev || 0).toFixed(1) || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Lower standard deviation indicates more stable velocity
-                </div>
-              </div>
+                 <div className="space-y-4">
+                   <h4 className="font-medium">Velocity Stability</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between">
+                         <span className="text-sm">Average Velocity</span>
+                         <span className="text-sm font-medium">{Number(healthIndicators?.avg_velocity || 0).toFixed(2) || 'N/A'}</span>
+                       </div>
+                     </div>
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between">
+                         <span className="text-sm">Standard Deviation</span>
+                         <span className="text-sm font-medium">{Number(healthIndicators?.velocity_stddev || 0).toFixed(2) || 'N/A'}</span>
+                       </div>
+                     </div>
+                   </div>
+                   <div className="text-sm text-muted-foreground">
+                     Lower standard deviation indicates more stable velocity
+                   </div>
+                 </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -39,6 +39,24 @@ export interface VelocityData {
     actual_velocity: number;
 }
 
+export interface SprintData {
+    name: string;
+    status: string;
+    total_tasks: number;
+    done_tasks: number;
+}
+
+export interface AnalyticsResponse {
+    summary: DashboardSummary;
+    currentSprint: CurrentSprint | null;
+    workload: MemberWorkload[];
+    velocity: VelocityData[];
+    velocityComparison: VelocityComparison;
+    agile: AgilePerformance;
+    sprints: SprintData[];
+    health: HealthIndicators;
+}
+
 export interface VelocityComparison {
     avg_velocity: number;
     current_velocity: number;
