@@ -41,7 +41,7 @@ export const sprintsService = {
         return response.data;
     },
 
-    complete: async (id: string, data: CompleteSprintDTO): Promise<{ message: string; actual_velocity: number; unfinished_handled: string; unfinished_count: number }> => {
+    complete: async (id: string, data?: CompleteSprintDTO): Promise<{ message: string; actual_velocity: number; unfinished_handled: string; unfinished_count: number }> => {
         const response = await api.put<{ message: string; actual_velocity: number; unfinished_handled: string; unfinished_count: number }>(`/sprints/${id}/complete`, data);
         return response.data;
     },

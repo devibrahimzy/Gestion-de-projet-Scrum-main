@@ -144,7 +144,7 @@ exports.activateSprint = async (req, res) => {
 exports.completeSprint = async (req, res) => {
     try {
         const { id } = req.params;
-        const { unfinished_action } = req.body; // 'backlog' or 'next_sprint'
+        const unfinished_action = req.body?.unfinished_action; // 'backlog' or 'next_sprint' - optional
 
         // Check Scrum Master
         const [sprintRows] = await Sprint.findById(id);
@@ -162,6 +162,13 @@ exports.completeSprint = async (req, res) => {
 
         // 2. Handle unfinished items
         if (unfinished.length > 0) {
+            if (!unfinished_action) {
+                return res.status(400).json({
+                    message: "Unfinished items found. Specify action: 'backlog' or 'next_sprint'",
+                    unfinished_items: unfinished.map(u => ({ id: u.id, title: u.title }))
+                });
+            }
+
             if (unfinished_action === 'backlog') {
                 // Move to backlog
                 for (const item of unfinished) {
@@ -175,7 +182,7 @@ exports.completeSprint = async (req, res) => {
                 // Keep in sprint for next one (status remains)
             } else {
                 return res.status(400).json({
-                    message: "Unfinished items found. Specify action: 'backlog' or 'next_sprint'",
+                    message: "Invalid unfinished_action. Must be 'backlog' or 'next_sprint'",
                     unfinished_items: unfinished.map(u => ({ id: u.id, title: u.title }))
                 });
             }
@@ -198,7 +205,7 @@ exports.completeSprint = async (req, res) => {
         res.json({
             message: "Sprint completed successfully",
             actual_velocity: velocity,
-            unfinished_handled: unfinished_action || 'none',
+            unfinished_handled: unfinished.length > 0 ? unfinished_action : 'none',
             unfinished_count: unfinished.length
         });
     } catch (err) {

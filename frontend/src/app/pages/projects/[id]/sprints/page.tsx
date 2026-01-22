@@ -198,18 +198,7 @@ export default function SprintsPage() {
                             Sprint Planning
                         </Button>
                     </Link>
-                    <Link to={`/projects/${projectId}/sprints/history`}>
-                        <Button variant="outline">
-                            <History className="mr-2 h-4 w-4" />
-                            Sprint History
-                        </Button>
-                    </Link>
-                    <Link to={`/projects/${projectId}/retrospectives`}>
-                        <Button variant="outline">
-                            <Users className="mr-2 h-4 w-4" />
-                            Retrospectives
-                        </Button>
-                    </Link>
+                    
                     <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
                         <Button>
