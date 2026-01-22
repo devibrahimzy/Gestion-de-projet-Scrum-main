@@ -19,6 +19,9 @@ import ProjectsPage from "./pages/projects/page";
 import ProjectOverview from "./pages/projects/[id]/overview/page";
 import ProjectBacklog from "./pages/projects/[id]/backlog/page";
 import ProjectSprints from "./pages/projects/[id]/sprints/page";
+import ActiveSprintPage from "./pages/projects/[id]/sprints/active/page";
+import SprintPlanningPage from "./pages/projects/[id]/sprints/planning/page";
+import SprintHistoryPage from "./pages/projects/[id]/sprints/history/page";
 import SprintRetrospective from "./pages/projects/[id]/sprints/[sprintId]/retrospective/page";
 import ProjectKanban from "./pages/projects/[id]/kanban/page";
 import ProjectMembers from "./pages/projects/[id]/members/page";
@@ -48,6 +51,9 @@ export const AppRouter: React.FC = () => {
               <Route path="/projects/:id" element={<ProjectOverview />} />
               <Route path="/projects/:id/backlog" element={<ProjectBacklog />} />
               <Route path="/projects/:id/sprints" element={<ProjectSprints />} />
+              <Route path="/projects/:id/sprints/active" element={<ActiveSprintPage />} />
+              <Route path="/projects/:id/sprints/planning" element={<SprintPlanningPage />} />
+              <Route path="/projects/:id/sprints/history" element={<SprintHistoryPage />} />
               <Route path="/projects/:id/sprints/:sprintId/retrospective" element={<SprintRetrospective />} />
               <Route path="/projects/:id/kanban" element={<ProjectKanban />} />
               <Route path="/projects/:id/members" element={<ProjectMembers />} />
