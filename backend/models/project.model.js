@@ -142,11 +142,16 @@ exports.addMember = (member) => {
 
 exports.getMembers = (projectId) => {
     return db.query(
-        `SELECT pm.role, u.id, u.first_name, u.last_name, u.email
+        `SELECT pm.role, u.id, u.first_name, u.last_name, u.email, 'MEMBER' as status
          FROM project_members pm
          JOIN users u ON pm.user_id = u.id
-         WHERE pm.project_id = ?`,
-        [projectId]
+         WHERE pm.project_id = ?
+         UNION
+         SELECT pi.role, u.id, u.first_name, u.last_name, u.email, 'INVITED' as status
+         FROM project_invitations pi
+         JOIN users u ON pi.email = u.email
+         WHERE pi.project_id = ? AND pi.status = 'PENDING'`,
+        [projectId, projectId]
     );
 };
 

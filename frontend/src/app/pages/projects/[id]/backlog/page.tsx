@@ -431,8 +431,85 @@ export default function BacklogPage() {
       );
     }
 
+    // Type filter
+    if (filters.type && filters.type.length > 0) {
+      filtered = filtered.filter(item => filters.type!.includes(item.type));
+    }
+
+    // Priority filter
+    if (filters.priority && filters.priority.length > 0) {
+      filtered = filtered.filter(item => filters.priority!.includes(item.priority));
+    }
+
+    // Status filter
+    if (filters.status && filters.status.length > 0) {
+      filtered = filtered.filter(item => filters.status!.includes(item.status));
+    }
+
+    // Assignee filter
+    if (filters.assigned_to_id !== undefined) {
+      filtered = filtered.filter(item => {
+        if (filters.assigned_to_id === null || filters.assigned_to_id === '') {
+          return item.assigned_to_id === null;
+        }
+        return item.assigned_to_id === filters.assigned_to_id;
+      });
+    }
+
+    // Sprint filter
+    if (filters.sprint_id !== undefined) {
+      filtered = filtered.filter(item => {
+        if (filters.sprint_id === null || filters.sprint_id === '') {
+          return item.sprint_id === null;
+        }
+        return item.sprint_id === filters.sprint_id;
+      });
+    }
+
+    // Tags filter
+    if (filters.tags && filters.tags.length > 0) {
+      filtered = filtered.filter(item => 
+        item.tags && filters.tags!.some(tag => item.tags!.includes(tag))
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue = a[sort.field];
+      let bValue = b[sort.field];
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      // For string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sort.direction === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      // For number comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sort.direction === 'asc' 
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+
+      // For date comparison
+      if (aValue instanceof Date || bValue instanceof Date) {
+        const aDate = new Date(aValue as string);
+        const bDate = new Date(bValue as string);
+        return sort.direction === 'asc' 
+          ? aDate.getTime() - bDate.getTime()
+          : bDate.getTime() - aDate.getTime();
+      }
+
+      return 0;
+    });
+
     return filtered;
-  }, [backlogItems, searchQuery]);
+  }, [backlogItems, searchQuery, filters, sort]);
 
   const availableSprints = useMemo(() => {
     return sprints.filter(s => s.status === 'PLANNING' || s.status === 'ACTIVE');

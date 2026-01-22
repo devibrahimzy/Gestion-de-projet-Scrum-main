@@ -50,7 +50,7 @@ export const ProjectLayout: React.FC = () => {
   return (
     <div className="flex flex-col min-h-0 flex-1">
       <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto">
+        <div className="container mx-auto pt-4 px-12">
           <div className="py-6">
             {project && (
               <div className="space-y-4">

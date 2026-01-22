@@ -38,6 +38,7 @@ export interface ProjectMemberWithUser {
     first_name: string;
     last_name: string;
     email: string;
+    status?: 'MEMBER' | 'INVITED';
 }
 
 export interface CreateProjectDTO {

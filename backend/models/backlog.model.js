@@ -4,38 +4,88 @@ exports.findAllByProject = (projectId, filters = {}) => {
     let sql = "SELECT * FROM backlog_items WHERE project_id = ? AND isActive = 1";
     const params = [projectId];
 
-    if (filters.status) {
+    // Handle array filters
+    if (filters.status && Array.isArray(filters.status)) {
+        const placeholders = filters.status.map(() => '?').join(',');
+        sql += ` AND status IN (${placeholders})`;
+        params.push(...filters.status);
+    } else if (filters.status) {
         sql += " AND status = ?";
         params.push(filters.status);
     }
-    if (filters.priority) {
+
+    if (filters.priority && Array.isArray(filters.priority)) {
+        const placeholders = filters.priority.map(() => '?').join(',');
+        sql += ` AND priority IN (${placeholders})`;
+        params.push(...filters.priority);
+    } else if (filters.priority) {
         sql += " AND priority = ?";
         params.push(filters.priority);
     }
-    if (filters.type) {
+
+    if (filters.type && Array.isArray(filters.type)) {
+        const placeholders = filters.type.map(() => '?').join(',');
+        sql += ` AND type IN (${placeholders})`;
+        params.push(...filters.type);
+    } else if (filters.type) {
         sql += " AND type = ?";
         params.push(filters.type);
     }
-    if (filters.assigned_to) {
-        sql += " AND assigned_to_id = ?";
-        params.push(filters.assigned_to);
+
+    if (filters.assigned_to_id) {
+        if (filters.assigned_to_id === 'null') {
+            sql += " AND assigned_to_id IS NULL";
+        } else {
+            sql += " AND assigned_to_id = ?";
+            params.push(filters.assigned_to_id);
+        }
     }
-    if (filters.tags) {
+
+    if (filters.sprint_id) {
+        if (filters.sprint_id === 'null') {
+            sql += " AND sprint_id IS NULL";
+        } else {
+            sql += " AND sprint_id = ?";
+            params.push(filters.sprint_id);
+        }
+    }
+
+    // Handle tags filter
+    if (filters.tags && Array.isArray(filters.tags)) {
+        const tagConditions = filters.tags.map(() => "JSON_CONTAINS(tags, JSON_QUOTE(?))").join(' OR ');
+        sql += ` AND (${tagConditions})`;
+        params.push(...filters.tags);
+    } else if (filters.tags) {
         sql += " AND JSON_CONTAINS(tags, JSON_QUOTE(?))";
         params.push(filters.tags);
     }
 
+    // Handle search
+    if (filters.search) {
+        sql += " AND (title LIKE ? OR description LIKE ?)";
+        const searchTerm = `%${filters.search}%`;
+        params.push(searchTerm, searchTerm);
+    }
+
+    // Handle sorting
     let orderBy = "position ASC, priority DESC, created_at ASC";
-    if (filters.sort === 'created_at') {
-        orderBy = "created_at DESC";
-    } else if (filters.sort === 'title') {
-        orderBy = "title ASC";
-    } else if (filters.sort === 'story_points') {
-        orderBy = "story_points ASC";
-    } else if (filters.sort === 'status') {
-        orderBy = "status ASC";
-    } else if (filters.sort === 'priority') {
-        orderBy = "priority DESC";
+    const sortField = filters.sort || 'position';
+    const sortOrder = filters.sortOrder || 'asc';
+    
+    // Validate sort field
+    const validSortFields = ['position', 'priority', 'story_points', 'created_at', 'title', 'status', 'due_date'];
+    if (validSortFields.includes(sortField)) {
+        const direction = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+        
+        // Special handling for priority ordering
+        if (sortField === 'priority') {
+            const priorityOrder = direction === 'DESC' ? 
+                "FIELD(priority, 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW')" : 
+                "FIELD(priority, 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL')";
+            orderBy = `${priorityOrder} ${direction}`;
+        } else {
+            orderBy = `${sortField} ${direction}`;
+        }
     }
 
     sql += ` ORDER BY ${orderBy}`;

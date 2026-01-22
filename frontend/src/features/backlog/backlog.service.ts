@@ -13,22 +13,22 @@ import type {
 
 export const backlogService = {
     getByProject: async (projectId: string, filters?: BacklogFilters, sort?: BacklogSort): Promise<BacklogItem[]> => {
-        const params = new URLSearchParams({ projectId });
+        const params: Record<string, string> = { projectId };
         if (filters) {
-            if (filters.type?.length) params.append('type', filters.type.join(','));
-            if (filters.priority?.length) params.append('priority', filters.priority.join(','));
-            if (filters.tags?.length) params.append('tags', filters.tags.join(','));
-            if (filters.assigned_to_id) params.append('assigned_to_id', filters.assigned_to_id);
-            if (filters.sprint_id) params.append('sprint_id', filters.sprint_id);
-            if (filters.status?.length) params.append('status', filters.status.join(','));
-            if (filters.search) params.append('search', filters.search);
+            if (filters.type?.length) params.type = filters.type.join(',');
+            if (filters.priority?.length) params.priority = filters.priority.join(',');
+            if (filters.tags?.length) params.tags = filters.tags.join(',');
+        if (filters.assigned_to_id !== undefined) params.assigned_to_id = filters.assigned_to_id === null ? 'null' : filters.assigned_to_id;
+        if (filters.sprint_id !== undefined) params.sprint_id = filters.sprint_id === null ? 'null' : filters.sprint_id;
+            if (filters.status?.length) params.status = filters.status.join(',');
+            if (filters.search) params.search = filters.search;
         }
         if (sort) {
-            params.append('sortBy', sort.field);
-            params.append('sortOrder', sort.direction);
+            params.sortBy = sort.field;
+            params.sortOrder = sort.direction;
         }
 
-        const response = await api.get<BacklogItem[]>("/backlog", { params: Object.fromEntries(params) });
+        const response = await api.get<BacklogItem[]>("/backlog", { params });
         return response.data;
     },
 

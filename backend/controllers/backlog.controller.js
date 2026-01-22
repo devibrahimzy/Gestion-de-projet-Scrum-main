@@ -4,7 +4,7 @@ const db = require("../config/database");
 
 exports.getBacklogByProject = async (req, res) => {
     try {
-        const { projectId, status, priority, type, assigned_to, sort } = req.query;
+        const { projectId, status, priority, type, assigned_to_id, tags, sprint_id, search, sortBy, sortOrder } = req.query;
         if (!projectId) return res.status(400).json({ message: "Project ID is required" });
 
         // Check if user is member
@@ -13,7 +13,35 @@ exports.getBacklogByProject = async (req, res) => {
             return res.status(403).json({ message: "Not a member of this project" });
         }
 
-        const [items] = await BacklogItem.findAllByProject(projectId, { status, priority, type, assigned_to, sort });
+        // Build filters object
+        const filters = {};
+        if (status) {
+            filters.status = Array.isArray(status) ? status : status.split(',');
+        }
+        if (priority) {
+            filters.priority = Array.isArray(priority) ? priority : priority.split(',');
+        }
+        if (type) {
+            filters.type = Array.isArray(type) ? type : type.split(',');
+        }
+        if (tags) {
+            filters.tags = Array.isArray(tags) ? tags : tags.split(',');
+        }
+        if (assigned_to_id) {
+            filters.assigned_to_id = assigned_to_id;
+        }
+        if (sprint_id) {
+            filters.sprint_id = sprint_id;
+        }
+        if (search) {
+            filters.search = search;
+        }
+        if (sortBy) {
+            filters.sort = sortBy;
+            filters.sortOrder = sortOrder;
+        }
+
+        const [items] = await BacklogItem.findAllByProject(projectId, filters);
 
         // Parse tags
         const parsedItems = items.map(item => ({
