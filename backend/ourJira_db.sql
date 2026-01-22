@@ -78,15 +78,12 @@ CREATE TABLE `backlog_acceptance_criteria` (
   `is_completed` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `fk_criteria_backlog` (`backlog_item_id`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Indexes for table `backlog_acceptance_criteria`
 --
-ALTER TABLE `backlog_acceptance_criteria`
-  ADD KEY `fk_criteria_backlog` (`backlog_item_id`);
 
 --
 -- Constraints for table `backlog_acceptance_criteria`
