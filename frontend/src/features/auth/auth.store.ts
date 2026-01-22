@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     token: localStorage.getItem("authToken"),
     isLoading: false,
     error: null,
-    isAuthenticated: !!localStorage.getItem("authToken"),
+    isAuthenticated: false,
 
     login: async (credentials: LoginCredentials) => {
     set({ isLoading: true, error: null });
@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({
             user: response.user,
             token: response.token,
-            isAuthenticated: true,
+            isAuthenticated: response.user.is_verified ?? false,
             isLoading: false,
         });
     } catch (err) {
@@ -127,7 +127,12 @@ getProfile: async () => {
         set({ isLoading: true, error: null });
         try {
             await authService.verifyEmail(email, code);
-            set({ isLoading: false });
+            // Update user verification status
+            set((state) => ({
+                user: state.user ? { ...state.user, is_verified: true } : null,
+                isAuthenticated: true,
+                isLoading: false
+            }));
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Failed to verify email";
             set({ error: errorMessage, isLoading: false });
@@ -170,9 +175,9 @@ getProfile: async () => {
     restoreSession: () => {
         const token = localStorage.getItem("authToken");
         const storedUser = localStorage.getItem("authUser");
-        if (token) {
-            const user = storedUser ? JSON.parse(storedUser) : null;
-            set({ token, user, isAuthenticated: true });
+        if (token && storedUser) {
+            const user = JSON.parse(storedUser);
+            set({ token, user, isAuthenticated: user.is_verified ?? false });
 
             console.log("Session restored from localStorage." , { user, token });
         }

@@ -1,11 +1,11 @@
 export interface User {
-    user: User;
     id: string;
     email: string;
     first_name?: string;
     last_name?: string;
     role: 'ADMIN' | 'SCRUM_MASTER' | 'TEAM_MEMBER' | 'PRODUCT_OWNER';
     isActive?: boolean;
+    is_verified?: boolean;
 }
 
 export interface AuthResponse {

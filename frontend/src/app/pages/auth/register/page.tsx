@@ -86,13 +86,11 @@ export default function RegisterPage() {
       await register(formData);
       toast({
         title: "Success",
-        description: "Account created successfully! Redirecting to login...",
+        description: "Account created successfully! Please verify your email.",
         variant: "default",
       });
       setTimeout(() => {
-        navigate("/auth/login", {
-          state: { message: "Registration successful! Please login." },
-        });
+        navigate(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
       }, 1000);
     } catch (err: any) {
       const errorMessage =

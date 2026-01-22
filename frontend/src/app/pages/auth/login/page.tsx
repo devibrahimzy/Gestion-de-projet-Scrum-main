@@ -77,9 +77,17 @@ export default function LoginPage() {
       let errorMessage =
         err?.response?.data?.message || err?.message || "Login failed. Please try again.";
 
-      // Handle unverified account
-      if (errorMessage.includes("not verified")) {
-        errorMessage = "Your account is not verified. Please check your email for the verification code.";
+      // Handle unverified account - redirect to verify email page
+      if (errorMessage.includes("not verified") || errorMessage.includes("verify")) {
+        toast({
+          title: "Account Not Verified",
+          description: "Please verify your email before logging in.",
+          variant: "default",
+        });
+        setTimeout(() => {
+          navigate(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
+        }, 1000);
+        return;
       }
 
       setApiError(errorMessage);
