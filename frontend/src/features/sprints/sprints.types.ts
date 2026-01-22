@@ -11,6 +11,8 @@ export interface Sprint {
     planned_velocity?: number;
     actual_velocity?: number;
     isActive: boolean;
+    completed_items: number;
+    pending_items: number;
 }
 
 export interface CreateSprintDTO {

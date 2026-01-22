@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Project } from '@/features/projects/projects.types';
 import { projectsService } from '@/features/projects/projects.service';
+import { useAuthStore } from '@/features/auth/auth.store';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -66,6 +67,7 @@ type CreateProjectFormValues = z.infer<typeof createProjectSchema>;
 type ViewMode = 'grid' | 'list';
 
 export default function ProjectsPage() {
+  const { user } = useAuthStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,75 +253,258 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground mt-2">Manage and view all your projects</p>
         </div>
-        <div className="flex gap-2">
-          <Dialog
-            open={isJoinDialogOpen}
-            onOpenChange={setIsJoinDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" size="lg" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Join Project
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Join Project</DialogTitle>
-                <DialogDescription>
-                  Enter the invitation code you received to join a project.
-                </DialogDescription>
-              </DialogHeader>
-              {joinError && (
-                <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
-                  {joinError}
-                </div>
-              )}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="join-code" className="text-sm font-medium">
-                    Invitation Code
-                  </label>
-                  <Input
-                    id="join-code"
-                    placeholder="Enter invitation code"
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value)}
-                    disabled={isJoining}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleJoinProject}
-                    disabled={!joinCode.trim() || isJoining}
-                    className="flex-1"
-                  >
-                    {isJoining ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Joining...
-                      </>
+                   <div className="flex gap-2">
+                     {user?.role === 'TEAM_MEMBER' ? (
+                       <Dialog
+                         open={isJoinDialogOpen}
+                         onOpenChange={setIsJoinDialogOpen}
+                       >
+                         <DialogTrigger asChild>
+                           <Button variant="outline" size="lg" className="gap-2">
+                             <Plus className="h-4 w-4" />
+                             Join Project
+                           </Button>
+                         </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Join Project</DialogTitle>
+                            <DialogDescription>
+                              Enter the invitation code you received to join a project.
+                            </DialogDescription>
+                          </DialogHeader>
+                          {joinError && (
+                            <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
+                              {joinError}
+                            </div>
+                          )}
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <label htmlFor="join-code" className="text-sm font-medium">
+                                Invitation Code
+                              </label>
+                              <Input
+                                id="join-code"
+                                placeholder="Enter invitation code"
+                                value={joinCode}
+                                onChange={(e) => setJoinCode(e.target.value)}
+                                disabled={isJoining}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={handleJoinProject}
+                                disabled={!joinCode.trim() || isJoining}
+                                className="flex-1"
+                              >
+                                {isJoining ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Joining...
+                                  </>
+                                ) : (
+                                  'Join Project'
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  setIsJoinDialogOpen(false);
+                                  setJoinCode('');
+                                  setJoinError(null);
+                                }}
+                                disabled={isJoining}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     ) : (
-                      'Join Project'
+                      <Dialog
+                        open={isDialogOpen}
+                        onOpenChange={setIsDialogOpen}
+                      >
+                         <DialogTrigger asChild>
+                           <Button size="lg" className="gap-2">
+                             <Plus className="h-4 w-4" />
+                             Create Project
+                           </Button>
+                         </DialogTrigger>
+                         <DialogContent className="sm:max-w-[600px]">
+                           <DialogHeader>
+                             <DialogTitle>{editingProject ? 'Edit Project' : 'Create New Project'}</DialogTitle>
+                             <DialogDescription>
+                               {editingProject ? 'Update your project details below.' : 'Fill in the details to create a new project.'}
+                             </DialogDescription>
+                           </DialogHeader>
+                           {createError && (
+                             <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
+                               {createError}
+                             </div>
+                           )}
+                           <Form {...form}>
+                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                               <FormField
+                                 control={form.control}
+                                 name="name"
+                                 render={({ field }) => (
+                                   <FormItem>
+                                     <FormLabel>Project Name</FormLabel>
+                                     <FormControl>
+                                       <Input placeholder="Enter project name" {...field} disabled={isCreating} />
+                                     </FormControl>
+                                     <FormMessage />
+                                   </FormItem>
+                                 )}
+                               />
+                               <FormField
+                                 control={form.control}
+                                 name="description"
+                                 render={({ field }) => (
+                                   <FormItem>
+                                     <FormLabel>Description</FormLabel>
+                                     <FormControl>
+                                       <Textarea
+                                         placeholder="Describe your project..."
+                                         className="resize-none"
+                                         {...field}
+                                         disabled={isCreating}
+                                       />
+                                     </FormControl>
+                                     <FormMessage />
+                                   </FormItem>
+                                 )}
+                               />
+                               <div className="space-y-3">
+                                 <FormLabel>Objectives (at least 3)</FormLabel>
+                                 {form.watch('objectives').map((_, index) => (
+                                   <FormField
+                                     key={index}
+                                     control={form.control}
+                                     name={`objectives.${index}`}
+                                     render={({ field }) => (
+                                       <FormItem>
+                                         <FormControl>
+                                           <Input
+                                             placeholder={`Objective ${index + 1}`}
+                                             {...field}
+                                             disabled={isCreating}
+                                           />
+                                         </FormControl>
+                                         <FormMessage />
+                                       </FormItem>
+                                     )}
+                                   />
+                                 ))}
+                                 <Button
+                                   type="button"
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => {
+                                     const currentObjectives = form.getValues('objectives');
+                                     form.setValue('objectives', [...currentObjectives, '']);
+                                   }}
+                                   disabled={isCreating}
+                                 >
+                                   <Plus className="h-4 w-4 mr-2" />
+                                   Add Objective
+                                 </Button>
+                               </div>
+                               <div className="grid grid-cols-2 gap-4">
+                                 <FormField
+                                   control={form.control}
+                                   name="methodology"
+                                   render={({ field }) => (
+                                     <FormItem>
+                                       <FormLabel>Methodology</FormLabel>
+                                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isCreating}>
+                                         <FormControl>
+                                           <SelectTrigger>
+                                             <SelectValue placeholder="Select methodology" />
+                                           </SelectTrigger>
+                                         </FormControl>
+                                         <SelectContent>
+                                           <SelectItem value="SCRUM">Scrum</SelectItem>
+                                           <SelectItem value="KANBAN">Kanban</SelectItem>
+                                         </SelectContent>
+                                       </Select>
+                                       <FormMessage />
+                                     </FormItem>
+                                   )}
+                                 />
+                                 <FormField
+                                   control={form.control}
+                                   name="sprint_duration"
+                                   render={({ field }) => (
+                                     <FormItem>
+                                       <FormLabel>Sprint Duration (weeks)</FormLabel>
+                                       <Select
+                                         onValueChange={(value) => field.onChange(parseInt(value))}
+                                         defaultValue={field.value.toString()}
+                                         disabled={isCreating}
+                                       >
+                                         <FormControl>
+                                           <SelectTrigger>
+                                             <SelectValue placeholder="Select duration" />
+                                           </SelectTrigger>
+                                         </FormControl>
+                                         <SelectContent>
+                                           <SelectItem value="1">1 week</SelectItem>
+                                           <SelectItem value="2">2 weeks</SelectItem>
+                                           <SelectItem value="3">3 weeks</SelectItem>
+                                           <SelectItem value="4">4 weeks</SelectItem>
+                                         </SelectContent>
+                                       </Select>
+                                       <FormMessage />
+                                     </FormItem>
+                                   )}
+                                 />
+                               </div>
+                               <FormField
+                                 control={form.control}
+                                 name="start_date"
+                                 render={({ field }) => (
+                                   <FormItem>
+                                     <FormLabel>Start Date</FormLabel>
+                                     <FormControl>
+                                       <Input type="date" {...field} disabled={isCreating} />
+                                     </FormControl>
+                                     <FormMessage />
+                                   </FormItem>
+                                 )}
+                               />
+                               <div className="flex gap-2 justify-end">
+                                 <Button
+                                   type="button"
+                                   variant="outline"
+                                   onClick={() => {
+                                     setIsDialogOpen(false);
+                                     setEditingProject(null);
+                                     form.reset();
+                                   }}
+                                   disabled={isCreating}
+                                 >
+                                   Cancel
+                                 </Button>
+                                 <Button type="submit" disabled={isCreating}>
+                                   {isCreating ? (
+                                     <>
+                                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                       {editingProject ? 'Updating...' : 'Creating...'}
+                                     </>
+                                   ) : (
+                                     editingProject ? 'Update Project' : 'Create Project'
+                                   )}
+                                 </Button>
+                               </div>
+                             </form>
+                           </Form>
+                         </DialogContent>
+                      </Dialog>
                     )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsJoinDialogOpen(false);
-                      setJoinCode('');
-                      setJoinError(null);
-                    }}
-                    disabled={isJoining}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+                  </div>      </div>
 
       {error && (
         <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
@@ -406,11 +591,7 @@ export default function ProjectsPage() {
                 : 'Create your first project to get started'}
             </CardDescription>
           </CardHeader>
-           <CardContent className="flex justify-center">
-             {!searchQuery && statusFilter === 'all' && (
-               <Button onClick={() => setIsDialogOpen(true)}>Create Your First Project</Button>
-             )}
-           </CardContent>
+           
         </Card>
       ) : (
         <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
