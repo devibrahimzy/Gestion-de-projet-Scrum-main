@@ -29,14 +29,21 @@ exports.findProjectsByUser = (userId, filters = {}) => {
     let whereClause = "pm.user_id = ? AND p.isActive = 1";
     const params = [userId];
 
-    if (filters.status) {
+    if (filters.status && filters.status !== 'all') {
         whereClause += " AND p.status = ?";
         params.push(filters.status);
     }
 
     let orderBy = "p.created_at DESC";
-    if (filters.sort === 'name') {
-        orderBy = "p.name ASC";
+    if (filters.sortBy) {
+        const direction = filters.sortOrder === 'asc' ? 'ASC' : 'DESC';
+        if (filters.sortBy === 'name') {
+            orderBy = `p.name ${direction}`;
+        } else if (filters.sortBy === 'created_at') {
+            orderBy = `p.created_at ${direction}`;
+        } else if (filters.sortBy === 'updated_at') {
+            orderBy = `p.updated_at ${direction}`;
+        }
     }
 
     return db.query(

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -53,10 +53,12 @@ import { ProjectCard } from '@/features/projects/components/ProjectCard';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
 const createProjectSchema = z.object({
-  name: z.string().min(1, 'Project name is required').min(3, 'Project name must be at least 3 characters'),
-  description: z.string().optional(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional(),
+  name: z.string().min(3, 'Project name must be at least 3 characters').max(100, 'Project name must be less than 100 characters'),
+  description: z.string().min(1, 'Description is required').max(1000, 'Description must be less than 1000 characters'),
+  objectives: z.array(z.string().min(1, 'Objective cannot be empty')).min(3, 'At least 3 objectives are required'),
+  methodology: z.enum(['SCRUM', 'KANBAN']),
+  sprint_duration: z.number().min(1).max(4),
+  start_date: z.string().min(1, 'Start date is required'),
 });
 
 type CreateProjectFormValues = z.infer<typeof createProjectSchema>;
@@ -73,17 +75,22 @@ export default function ProjectsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [archivingProject, setArchivingProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'PLANNING' | 'ACTIVE' | 'COMPLETED'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'PLANNING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'updated_at'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const form = useForm<CreateProjectFormValues>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: '',
       description: '',
-      start_date: '',
-      end_date: '',
+      objectives: ['', '', ''],
+      methodology: 'SCRUM',
+      sprint_duration: 2,
+      start_date: new Date().toISOString().split('T')[0],
     },
   });
 
@@ -92,23 +99,23 @@ export default function ProjectsPage() {
     if (editingProject) {
       form.reset({
         name: editingProject.name,
-        description: editingProject.description || '',
-        start_date: editingProject.start_date || '',
-        end_date: editingProject.end_date || '',
+        description: editingProject.description,
+        objectives: editingProject.objectives || ['', '', ''],
+        methodology: editingProject.methodology,
+        sprint_duration: editingProject.sprint_duration,
+        start_date: editingProject.start_date.split('T')[0],
       });
     } else {
       form.reset({
         name: '',
         description: '',
-        start_date: '',
-        end_date: '',
+        objectives: ['', '', ''],
+        methodology: 'SCRUM',
+        sprint_duration: 2,
+        start_date: new Date().toISOString().split('T')[0],
       });
     }
   }, [editingProject, form]);
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
 
   useEffect(() => {
     let filtered = projects;
@@ -120,17 +127,17 @@ export default function ProjectsPage() {
       );
     }
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => p.status === statusFilter);
-    }
-
     setFilteredProjects(filtered);
-  }, [projects, searchQuery, statusFilter]);
+  }, [projects, searchQuery]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await projectsService.getMyProjects();
+      const data = await projectsService.getMyProjects({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        sortBy,
+        sortOrder,
+      });
       setProjects(data);
       setError(null);
     } catch (err) {
@@ -139,7 +146,11 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const onSubmit = async (values: CreateProjectFormValues) => {
     try {
@@ -149,16 +160,20 @@ export default function ProjectsPage() {
       if (editingProject) {
         await projectsService.update(editingProject.id, {
           name: values.name,
-          description: values.description || undefined,
-          start_date: values.start_date || undefined,
-          end_date: values.end_date || undefined,
+          description: values.description,
+          objectives: values.objectives,
+          methodology: values.methodology,
+          sprint_duration: values.sprint_duration,
+          start_date: values.start_date,
         });
       } else {
         await projectsService.create({
           name: values.name,
-          description: values.description || undefined,
-          start_date: values.start_date || undefined,
-          end_date: values.end_date || undefined,
+          description: values.description,
+          objectives: values.objectives,
+          methodology: values.methodology,
+          sprint_duration: values.sprint_duration,
+          start_date: values.start_date,
         });
       }
 
@@ -179,6 +194,19 @@ export default function ProjectsPage() {
   const handleEdit = (project: Project) => {
     setEditingProject(project);
     setIsDialogOpen(true);
+  };
+
+  const handleArchive = async () => {
+    if (!archivingProject) return;
+
+    try {
+      await projectsService.archive(archivingProject.id);
+      await fetchProjects();
+      setArchivingProject(null);
+    } catch (err) {
+      console.error('Error archiving project:', err);
+      // Could add error toast here
+    }
   };
 
   const handleDelete = async () => {
@@ -252,65 +280,121 @@ export default function ProjectsPage() {
 
 
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Describe your project..."
-                          disabled={isCreating}
-                          rows={3}
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 <FormField
+                   control={form.control}
+                   name="description"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Description *</FormLabel>
+                       <FormControl>
+                         <Textarea
+                           placeholder="Describe your project..."
+                           disabled={isCreating}
+                           rows={3}
+                           {...field}
+                         />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="start_date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm">Start Date</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            disabled={isCreating}
-                            {...field}
-                            value={field.value || ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                 <FormField
+                   control={form.control}
+                   name="objectives"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Objectives *</FormLabel>
+                       <FormDescription>
+                         Define at least 3 main objectives for this project
+                       </FormDescription>
+                       <div className="space-y-2">
+                         {field.value.map((objective: string, index: number) => (
+                           <Input
+                             key={index}
+                             placeholder={`Objective ${index + 1}`}
+                             value={objective}
+                             onChange={(e) => {
+                               const newObjectives = [...field.value];
+                               newObjectives[index] = e.target.value;
+                               field.onChange(newObjectives);
+                             }}
+                             disabled={isCreating}
+                           />
+                         ))}
+                       </div>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
 
-                  <FormField
-                    control={form.control}
-                    name="end_date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm">End Date</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            disabled={isCreating}
-                            {...field}
-                            value={field.value || ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                 <div className="grid grid-cols-2 gap-3">
+                   <FormField
+                     control={form.control}
+                     name="methodology"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Methodology *</FormLabel>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isCreating}>
+                           <FormControl>
+                             <SelectTrigger>
+                               <SelectValue placeholder="Select methodology" />
+                             </SelectTrigger>
+                           </FormControl>
+                           <SelectContent>
+                             <SelectItem value="SCRUM">Scrum</SelectItem>
+                             <SelectItem value="KANBAN">Kanban</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+
+                   <FormField
+                     control={form.control}
+                     name="sprint_duration"
+                     render={({ field }) => (
+                       <FormItem>
+                         <FormLabel>Sprint Duration (weeks) *</FormLabel>
+                         <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={field.value.toString()} disabled={isCreating}>
+                           <FormControl>
+                             <SelectTrigger>
+                               <SelectValue placeholder="Select duration" />
+                             </SelectTrigger>
+                           </FormControl>
+                           <SelectContent>
+                             <SelectItem value="1">1 week</SelectItem>
+                             <SelectItem value="2">2 weeks</SelectItem>
+                             <SelectItem value="3">3 weeks</SelectItem>
+                             <SelectItem value="4">4 weeks</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         <FormMessage />
+                       </FormItem>
+                     )}
+                   />
+                 </div>
+
+                 <FormField
+                   control={form.control}
+                   name="start_date"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel>Start Date *</FormLabel>
+                       <FormControl>
+                         <Input
+                           type="date"
+                           disabled={isCreating}
+                           {...field}
+                         />
+                       </FormControl>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+
+
 
                 <div className="flex gap-2 pt-4">
                   <Button
@@ -369,12 +453,13 @@ export default function ProjectsPage() {
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="PLANNING">Planning</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                </SelectContent>
+                 <SelectContent>
+                   <SelectItem value="all">All Status</SelectItem>
+                   <SelectItem value="PLANNING">Planning</SelectItem>
+                   <SelectItem value="ACTIVE">Active</SelectItem>
+                   <SelectItem value="COMPLETED">Completed</SelectItem>
+                   <SelectItem value="ARCHIVED">Archived</SelectItem>
+                 </SelectContent>
               </Select>
 
               <div className="flex border rounded-md p-1">
@@ -437,33 +522,51 @@ export default function ProjectsPage() {
         </Card>
       ) : (
         <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-           {filteredProjects.map((project) => (
-             <ProjectCard
-               key={project.id}
-               project={project}
-               onEdit={handleEdit}
-               onDelete={setDeletingProject}
-             />
-           ))}
+            {filteredProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onEdit={handleEdit}
+                onArchive={setArchivingProject}
+                onDelete={setDeletingProject}
+              />
+            ))}
         </div>
       )}
 
-      <AlertDialog open={!!deletingProject} onOpenChange={() => setDeletingProject(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{deletingProject?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+       <AlertDialog open={!!archivingProject} onOpenChange={() => setArchivingProject(null)}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Archive Project</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to archive "{archivingProject?.name}"? The project will be marked as completed and moved to archived status.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel>Cancel</AlertDialogCancel>
+             <AlertDialogAction onClick={handleArchive}>
+               Archive
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+
+       <AlertDialog open={!!deletingProject} onOpenChange={() => setDeletingProject(null)}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Delete Project</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete "{deletingProject?.name}"? This action cannot be undone and will permanently remove all project data.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel>Cancel</AlertDialogCancel>
+             <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+               Delete
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
     </div>
   );
 }

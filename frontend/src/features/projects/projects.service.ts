@@ -1,5 +1,5 @@
 import api from "@/shared/api/client";
-import { Project, ProjectMember, ProjectMemberWithUser, CreateProjectDTO, UpdateProjectDTO } from "./projects.types";
+import { Project, ProjectMember, ProjectMemberWithUser, CreateProjectDTO, UpdateProjectDTO, ProjectFilters } from "./projects.types";
 
 export const projectsService = {
     getAll: async (): Promise<Project[]> => {
@@ -7,8 +7,13 @@ export const projectsService = {
         return response.data;
     },
 
-    getMyProjects: async (): Promise<Project[]> => {
-        const response = await api.get<Project[]>("/projects/my-projects");
+    getMyProjects: async (filters?: ProjectFilters): Promise<Project[]> => {
+        const params = new URLSearchParams();
+        if (filters?.status) params.append('status', filters.status);
+        if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+        if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
+
+        const response = await api.get<Project[]>(`/projects/my-projects?${params.toString()}`);
         return response.data;
     },
 
@@ -24,6 +29,11 @@ export const projectsService = {
 
     update: async (id: string, data: UpdateProjectDTO): Promise<{ message: string; project: Project }> => {
         const response = await api.put<{ message: string; project: Project }>(`/projects/${id}`, data);
+        return response.data;
+    },
+
+    archive: async (id: string): Promise<{ message: string; project: Project }> => {
+        const response = await api.put<{ message: string; project: Project }>(`/projects/${id}/archive`);
         return response.data;
     },
 

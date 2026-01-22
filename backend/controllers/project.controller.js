@@ -201,6 +201,34 @@ exports.updateProject = async (req, res) => {
 
 
 
+exports.archiveProject = async (req, res) => {
+    try {
+        const projectId = req.params.id;
+
+        // Vérifie si l'utilisateur est Scrum Master
+        const allowed = await isScrumMaster(projectId, req.user.id);
+        if (!allowed) {
+            return res.status(403).json({ message: "Only Scrum Master can archive this project" });
+        }
+
+        const [rows] = await Project.findById(projectId);
+        if (rows.length === 0) return res.status(404).json({ message: "Project not found" });
+
+        const current = rows[0];
+        if (current.status === 'ARCHIVED') {
+            return res.status(400).json({ message: "Project is already archived" });
+        }
+
+        // Update status to ARCHIVED
+        await Project.update(projectId, { status: 'ARCHIVED' }, req.user.id);
+        await Project.logChange(projectId, req.user.id, 'ARCHIVE', 'status', current.status, 'ARCHIVED');
+
+        res.json({ message: "Project archived successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error archiving project", error: err.message });
+    }
+};
+
 exports.deleteProject = async (req, res) => {
     try {
         const projectId = req.params.id;

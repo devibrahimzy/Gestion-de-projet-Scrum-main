@@ -7,6 +7,7 @@ router.get("/my-projects", auth, projectController.getMyProjects);
 router.get("/", auth, projectController.getAllProjects);
 router.post("/", auth, projectController.createProject);
 router.put("/:id", auth, projectController.updateProject);
+router.put("/:id/archive", auth, projectController.archiveProject);
 router.delete("/:id", auth, projectController.deleteProject);
 router.get("/:id", auth, projectController.getProjectById);
 
