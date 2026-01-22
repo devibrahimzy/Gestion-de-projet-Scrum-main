@@ -67,13 +67,13 @@ export const projectsService = {
         return response.data;
     },
 
-    acceptInvitation: async (token: string): Promise<{ message: string }> => {
-        const response = await api.post<{ message: string }>("/projects/accept-invitation", { token });
+    acceptInvitation: async (code: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>("/projects/accept-invitation", { code });
         return response.data;
     },
 
-    refuseInvitation: async (token: string): Promise<{ message: string }> => {
-        const response = await api.post<{ message: string }>("/projects/refuse-invitation", { token });
+    refuseInvitation: async (code: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>("/projects/refuse-invitation", { code });
         return response.data;
     },
 };

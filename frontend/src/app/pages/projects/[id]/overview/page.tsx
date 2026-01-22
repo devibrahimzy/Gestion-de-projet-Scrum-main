@@ -302,27 +302,27 @@ export default function ProjectOverview() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-3">
-                {velocity.map((sprint) => (
-                  <div key={sprint.sprintName} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{sprint.sprintName}</span>
-                      <span className="text-muted-foreground">
-                        {sprint.actual}/{sprint.planned}
-                      </span>
-                    </div>
-                    <div className="relative h-6 bg-muted rounded overflow-hidden">
-                      <div 
-                        className="absolute top-0 left-0 h-full bg-blue-500"
-                        style={{ width: `${(sprint.planned / Math.max(...velocity.map(v => v.planned))) * 100}%` }}
-                      />
-                      <div 
-                        className="absolute top-0 left-0 h-full bg-green-500"
-                        style={{ width: `${(sprint.actual / Math.max(...velocity.map(v => v.planned))) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+               <div className="space-y-3">
+                 {velocity.map((sprint) => (
+                   <div key={sprint.name} className="space-y-2">
+                     <div className="flex items-center justify-between text-sm">
+                       <span className="font-medium">{sprint.name}</span>
+                       <span className="text-muted-foreground">
+                         {sprint.actual_velocity}/{sprint.planned_velocity}
+                       </span>
+                     </div>
+                     <div className="relative h-6 bg-muted rounded overflow-hidden">
+                       <div
+                         className="absolute top-0 left-0 h-full bg-blue-500"
+                         style={{ width: `${(sprint.planned_velocity / Math.max(...velocity.map(v => v.planned_velocity))) * 100}%` }}
+                       />
+                       <div
+                         className="absolute top-0 left-0 h-full bg-green-500"
+                         style={{ width: `${(sprint.actual_velocity / Math.max(...velocity.map(v => v.planned_velocity))) * 100}%` }}
+                       />
+                     </div>
+                   </div>
+                 ))}
               </div>
             </div>
           </CardContent>
@@ -344,20 +344,20 @@ export default function ProjectOverview() {
             {performance ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-muted-foreground">Cycle Time</div>
-                    <div className="text-2xl font-bold">
-                      {performance.cycleTime ? `${performance.cycleTime} days` : 'N/A'}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Average time to complete tasks</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-muted-foreground">Lead Time</div>
-                    <div className="text-2xl font-bold">
-                      {performance.leadTime ? `${performance.leadTime} days` : 'N/A'}
-                    </div>
-                    <p className="text-xs text-muted-foreground">From request to delivery</p>
-                  </div>
+                   <div className="space-y-2">
+                     <div className="text-sm font-medium text-muted-foreground">Cycle Time</div>
+                     <div className="text-2xl font-bold">
+                       {performance.avg_cycle_time_hours ? `${(performance.avg_cycle_time_hours / 24).toFixed(1)} days` : 'N/A'}
+                     </div>
+                     <p className="text-xs text-muted-foreground">Average time to complete tasks</p>
+                   </div>
+                   <div className="space-y-2">
+                     <div className="text-sm font-medium text-muted-foreground">Lead Time</div>
+                     <div className="text-2xl font-bold">
+                       {performance.avg_lead_time_hours ? `${(performance.avg_lead_time_hours / 24).toFixed(1)} days` : 'N/A'}
+                     </div>
+                     <p className="text-xs text-muted-foreground">From request to delivery</p>
+                   </div>
                 </div>
                 
                 {/* Backlog Completion Rate */}

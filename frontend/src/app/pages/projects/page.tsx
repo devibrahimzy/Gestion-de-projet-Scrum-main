@@ -76,6 +76,10 @@ export default function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [archivingProject, setArchivingProject] = useState<Project | null>(null);
+  const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'PLANNING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'>('all');
@@ -222,6 +226,24 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleJoinProject = async () => {
+    if (!joinCode.trim()) return;
+
+    try {
+      setIsJoining(true);
+      setJoinError(null);
+      await projectsService.acceptInvitation(joinCode.trim());
+      await fetchProjects();
+      setIsJoinDialogOpen(false);
+      setJoinCode('');
+    } catch (err: unknown) {
+      const errorMessage = (err as any)?.response?.data?.message || 'Failed to join project';
+      setJoinError(errorMessage);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -229,204 +251,74 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground mt-2">Manage and view all your projects</p>
         </div>
-        <Dialog
-          open={isDialogOpen}
-          onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) setEditingProject(null);
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button size="lg" className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Project
-            </Button>
-          </DialogTrigger>
-                 <DialogContent className="sm:max-w-md">
-                   <DialogHeader>
-                     <DialogTitle>{editingProject ? 'Edit Project' : 'Create New Project'}</DialogTitle>
-                     <DialogDescription>
-                       {editingProject ? 'Update the project details' : 'Fill in the details to create a new project'}
-                     </DialogDescription>
-                   </DialogHeader>
-
-            {createError && (
-              <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
-                {createError}
-              </div>
-            )}
-
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project Name *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., E-commerce Redesign"
-                          disabled={isCreating}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-
-
-
-
-                 <FormField
-                   control={form.control}
-                   name="description"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Description *</FormLabel>
-                       <FormControl>
-                         <Textarea
-                           placeholder="Describe your project..."
-                           disabled={isCreating}
-                           rows={3}
-                           {...field}
-                         />
-                       </FormControl>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-
-                 <FormField
-                   control={form.control}
-                   name="objectives"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Objectives *</FormLabel>
-                       <FormDescription>
-                         Define at least 3 main objectives for this project
-                       </FormDescription>
-                       <div className="space-y-2">
-                         {field.value.map((objective: string, index: number) => (
-                           <Input
-                             key={index}
-                             placeholder={`Objective ${index + 1}`}
-                             value={objective}
-                             onChange={(e) => {
-                               const newObjectives = [...field.value];
-                               newObjectives[index] = e.target.value;
-                               field.onChange(newObjectives);
-                             }}
-                             disabled={isCreating}
-                           />
-                         ))}
-                       </div>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-
-                 <div className="grid grid-cols-2 gap-3">
-                   <FormField
-                     control={form.control}
-                     name="methodology"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Methodology *</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isCreating}>
-                           <FormControl>
-                             <SelectTrigger>
-                               <SelectValue placeholder="Select methodology" />
-                             </SelectTrigger>
-                           </FormControl>
-                           <SelectContent>
-                             <SelectItem value="SCRUM">Scrum</SelectItem>
-                             <SelectItem value="KANBAN">Kanban</SelectItem>
-                           </SelectContent>
-                         </Select>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-
-                   <FormField
-                     control={form.control}
-                     name="sprint_duration"
-                     render={({ field }) => (
-                       <FormItem>
-                         <FormLabel>Sprint Duration (weeks) *</FormLabel>
-                         <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={field.value.toString()} disabled={isCreating}>
-                           <FormControl>
-                             <SelectTrigger>
-                               <SelectValue placeholder="Select duration" />
-                             </SelectTrigger>
-                           </FormControl>
-                           <SelectContent>
-                             <SelectItem value="1">1 week</SelectItem>
-                             <SelectItem value="2">2 weeks</SelectItem>
-                             <SelectItem value="3">3 weeks</SelectItem>
-                             <SelectItem value="4">4 weeks</SelectItem>
-                           </SelectContent>
-                         </Select>
-                         <FormMessage />
-                       </FormItem>
-                     )}
-                   />
-                 </div>
-
-                 <FormField
-                   control={form.control}
-                   name="start_date"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel>Start Date *</FormLabel>
-                       <FormControl>
-                         <Input
-                           type="date"
-                           disabled={isCreating}
-                           {...field}
-                         />
-                       </FormControl>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-
-
-
-                <div className="flex gap-2 pt-4">
+        <div className="flex gap-2">
+          <Dialog
+            open={isJoinDialogOpen}
+            onOpenChange={setIsJoinDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline" size="lg" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Join Project
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Join Project</DialogTitle>
+                <DialogDescription>
+                  Enter the invitation code you received to join a project.
+                </DialogDescription>
+              </DialogHeader>
+              {joinError && (
+                <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm">
+                  {joinError}
+                </div>
+              )}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="join-code" className="text-sm font-medium">
+                    Invitation Code
+                  </label>
+                  <Input
+                    id="join-code"
+                    placeholder="Enter invitation code"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    disabled={isJoining}
+                  />
+                </div>
+                <div className="flex gap-2">
                   <Button
-                    type="submit"
-                    disabled={isCreating}
+                    onClick={handleJoinProject}
+                    disabled={!joinCode.trim() || isJoining}
                     className="flex-1"
                   >
-                         {isCreating ? (
-                           <>
-                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                             {editingProject ? 'Updating...' : 'Creating...'}
-                           </>
-                         ) : (
-                           editingProject ? 'Update Project' : 'Create Project'
-                         )}
+                    {isJoining ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Joining...
+                      </>
+                    ) : (
+                      'Join Project'
+                    )}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={isCreating}
                     onClick={() => {
-                      setIsDialogOpen(false);
-                      setEditingProject(null);
+                      setIsJoinDialogOpen(false);
+                      setJoinCode('');
+                      setJoinError(null);
                     }}
+                    disabled={isJoining}
                   >
                     Cancel
                   </Button>
                 </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {error && (

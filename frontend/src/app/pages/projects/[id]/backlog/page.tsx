@@ -281,7 +281,7 @@ export default function BacklogPage() {
       priority: item.priority,
       tags: item.tags || [],
       assigned_to_id: item.assigned_to_id || '',
-      due_date: item.due_date || '',
+      due_date: item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : '',
     });
     setIsDialogOpen(true);
   };

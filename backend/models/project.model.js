@@ -174,10 +174,10 @@ exports.inviteMember = (invitation) => {
     );
 };
 
-exports.getInvitationByCode = (code, projectId) => {
+exports.getInvitationByCode = (code) => {
     return db.query(
-        "SELECT * FROM project_invitations WHERE invitation_code = ? AND project_id = ? AND expires_at > NOW() AND status = 'PENDING'",
-        [code, projectId]
+        "SELECT * FROM project_invitations WHERE invitation_code = ? AND expires_at > NOW() AND status = 'PENDING'",
+        [code]
     );
 };
 

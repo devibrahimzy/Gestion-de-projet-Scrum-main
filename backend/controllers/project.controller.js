@@ -368,6 +368,15 @@ exports.inviteMember = async (req, res) => {
             return res.status(400).json({ message: "User is already a member of this project" });
         }
 
+        // Check if there's already a pending invitation for this email and project
+        const [existingInvitation] = await db.query(
+            "SELECT id FROM project_invitations WHERE project_id = ? AND email = ? AND status = 'PENDING'",
+            [project_id, email]
+        );
+        if (existingInvitation.length > 0) {
+            return res.status(400).json({ message: "An invitation has already been sent to this email for this project" });
+        }
+
         const invitationCode = generateInvitationCode();
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -398,9 +407,9 @@ exports.inviteMember = async (req, res) => {
 
 exports.acceptInvitation = async (req, res) => {
     try {
-        const { code, project_id } = req.body;
+        const { code } = req.body;
 
-        const [invitations] = await Project.getInvitationByCode(code, project_id);
+        const [invitations] = await Project.getInvitationByCode(code);
         if (invitations.length === 0) {
             return res.status(400).json({ message: "Invalid or expired invitation code" });
         }
@@ -424,9 +433,9 @@ exports.acceptInvitation = async (req, res) => {
 
 exports.refuseInvitation = async (req, res) => {
     try {
-        const { code, project_id } = req.body;
+        const { code } = req.body;
 
-        const [invitations] = await Project.getInvitationByCode(code, project_id);
+        const [invitations] = await Project.getInvitationByCode(code);
         if (invitations.length === 0) {
             return res.status(400).json({ message: "Invalid or expired invitation code" });
         }
