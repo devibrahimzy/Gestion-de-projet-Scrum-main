@@ -86,12 +86,6 @@ CREATE TABLE `backlog_acceptance_criteria` (
 --
 
 --
--- Constraints for table `backlog_acceptance_criteria`
---
-ALTER TABLE `backlog_acceptance_criteria`
-  ADD CONSTRAINT `fk_criteria_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE;
-
---
 -- Table structure for table `backlog_attachments`
 --
 
@@ -474,6 +468,12 @@ ALTER TABLE `backlog_item_comments`
 --
 ALTER TABLE `sprints`
   ADD CONSTRAINT `fk_sprint_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`);
+
+--
+-- Constraints for table `backlog_acceptance_criteria`
+--
+ALTER TABLE `backlog_acceptance_criteria`
+  ADD CONSTRAINT `fk_criteria_backlog` FOREIGN KEY (`backlog_item_id`) REFERENCES `backlog_items` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 -- Add columns for account locking
