@@ -167,17 +167,17 @@ exports.reassignTasks = (userId) => {
 
 // Invitations
 exports.inviteMember = (invitation) => {
-    const { id, project_id, email, role, invited_by, token, expires_at } = invitation;
+    const { id, project_id, email, role, invited_by, invitation_code, expires_at } = invitation;
     return db.query(
-        "INSERT INTO project_invitations (id, project_id, email, role, invited_by, token, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [id, project_id, email, role, invited_by, token, expires_at]
+        "INSERT INTO project_invitations (id, project_id, email, role, invited_by, invitation_code, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [id, project_id, email, role, invited_by, invitation_code, expires_at]
     );
 };
 
-exports.getInvitationByToken = (token) => {
+exports.getInvitationByCode = (code, projectId) => {
     return db.query(
-        "SELECT * FROM project_invitations WHERE token = ? AND expires_at > NOW() AND status = 'PENDING'",
-        [token]
+        "SELECT * FROM project_invitations WHERE invitation_code = ? AND project_id = ? AND expires_at > NOW() AND status = 'PENDING'",
+        [code, projectId]
     );
 };
 

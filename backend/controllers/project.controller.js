@@ -4,7 +4,6 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const db = require("../config/database");
 
-// Email transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -13,35 +12,44 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendInvitationEmail = async (email, acceptLink, refuseLink, role) => {
+const generateInvitationCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+};
+
+const sendInvitationEmail = async (email, invitationCode, projectName, role) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'Project Invitation',
+    subject: `Project Invitation - ${projectName}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>You have been invited to join a project!</h2>
-        <p>You have been invited to join a project as <strong>${role.replace('_', ' ')}</strong>.</p>
+        <p>You have been invited to join <strong>${projectName}</strong> as <strong>${role.replace('_', ' ')}</strong>.</p>
 
-        <div style="margin: 30px 0;">
-          <a href="${acceptLink}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Accept Invitation</a>
-          <a href="${refuseLink}" style="background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Decline Invitation</a>
+        <div style="margin: 30px 0; text-align: center;">
+          <p style="font-size: 18px; margin-bottom: 10px;">Your invitation code:</p>
+          <div style="background-color: #f3f4f6; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 4px; border-radius: 8px;">
+            ${invitationCode}
+          </div>
         </div>
 
         <p><strong>Please note:</strong> This invitation will expire in 7 days.</p>
-        <p>If the buttons don't work, you can copy and paste these links into your browser:</p>
-        <p>Accept: ${acceptLink}</p>
-        <p>Decline: ${refuseLink}</p>
+        <p>Enter this code on your dashboard to accept the invitation.</p>
 
         <hr style="margin: 30px 0;">
         <p style="color: #666; font-size: 12px;">This is an automated message. Please do not reply to this email.</p>
       </div>
     `,
-    text: `You have been invited to join a project as ${role.replace('_', ' ')}.
+    text: `You have been invited to join ${projectName} as ${role.replace('_', ' ')}.
 
-To accept the invitation, visit: ${acceptLink}
-To decline the invitation, visit: ${refuseLink}
+Your invitation code: ${invitationCode}
 
+Enter this code on your dashboard to accept the invitation.
 This invitation will expire in 7 days.`,
   };
   await transporter.sendMail(mailOptions);
@@ -72,7 +80,6 @@ exports.getMyProjects = async (req, res) => {
 
         const [projects] = await Project.findProjectsByUser(userId, filters);
 
-        // Parse objectives back to array
         const parsedProjects = projects.map(p => ({
             ...p,
             objectives: p.objectives ? JSON.parse(p.objectives) : []
@@ -101,7 +108,6 @@ exports.createProject = async (req, res) => {
     try {
         const { name, description, objectives, methodology, sprint_duration, start_date } = req.body;
 
-        // Validation
         if (!name || name.length < 3 || name.length > 100) {
             return res.status(400).json({ message: "Project name is required (3-100 characters)" });
         }
@@ -134,7 +140,6 @@ exports.createProject = async (req, res) => {
 
         await Project.create(newProject);
 
-        // ➜ créateur = SCRUM_MASTER
         await Project.addMember({
             id: uuid(),
             project_id: projectId,
@@ -167,7 +172,6 @@ exports.updateProject = async (req, res) => {
 
         const current = rows[0];
 
-        // Validation
         if (name && (name.length < 3 || name.length > 100)) {
             return res.status(400).json({ message: "Project name must be 3-100 characters" });
         }
@@ -184,7 +188,6 @@ exports.updateProject = async (req, res) => {
             return res.status(400).json({ message: "Sprint duration must be 1, 2, 3, or 4 weeks" });
         }
 
-        // Validate Status if provided
         let finalStatus = status || current.status;
         const validStatuses = ['PLANNING', 'ACTIVE', 'COMPLETED'];
 
@@ -208,7 +211,6 @@ exports.updateProject = async (req, res) => {
             isActive: isActive ?? current.isActive
         };
 
-        // Log changes
         const fieldsToCheck = ['name', 'description', 'objectives', 'methodology', 'sprint_duration', 'start_date', 'end_date', 'status', 'isActive'];
         for (const field of fieldsToCheck) {
             if (updatedProject[field] !== current[field]) {
@@ -230,7 +232,6 @@ exports.archiveProject = async (req, res) => {
     try {
         const projectId = req.params.id;
 
-        // Vérifie si l'utilisateur est Scrum Master
         const allowed = await isScrumMaster(projectId, req.user.id);
         if (!allowed) {
             return res.status(403).json({ message: "Only Scrum Master can archive this project" });
@@ -244,7 +245,6 @@ exports.archiveProject = async (req, res) => {
             return res.status(400).json({ message: "Project is already archived" });
         }
 
-        // Update status to ARCHIVED
         await Project.update(projectId, { status: 'ARCHIVED' }, req.user.id);
         await Project.logChange(projectId, req.user.id, 'ARCHIVE', 'status', current.status, 'ARCHIVED');
 
@@ -259,18 +259,15 @@ exports.deleteProject = async (req, res) => {
         const projectId = req.params.id;
         const { confirm } = req.query;
 
-        // Vérifie si l'utilisateur est Scrum Master
         const allowed = await isScrumMaster(projectId, req.user.id);
         if (!allowed) {
             return res.status(403).json({ message: "Only Scrum Master can delete this project" });
         }
 
         if (confirm === 'hard') {
-            // Hard delete - requires double confirmation
             await Project.hardDelete(projectId);
             res.json({ message: "Project permanently deleted" });
         } else {
-            // Soft delete (archive)
             await Project.softDelete(projectId);
             await Project.logChange(projectId, req.user.id, 'ARCHIVE', null, null, null);
             res.json({ message: "Project archived successfully" });
@@ -280,7 +277,6 @@ exports.deleteProject = async (req, res) => {
     }
 };
 
-// Member Management
 exports.addMember = async (req, res) => {
     try {
         const { project_id, user_id, role } = req.body;
@@ -324,7 +320,6 @@ exports.updateMemberRole = async (req, res) => {
             return res.status(403).json({ message: "Only Scrum Master can update member roles" });
         }
 
-        // Validate role
         const validRoles = ['PRODUCT_OWNER', 'SCRUM_MASTER', 'TEAM_MEMBER'];
         if (!validRoles.includes(role)) {
             return res.status(400).json({ message: "Invalid role" });
@@ -345,7 +340,7 @@ exports.removeMember = async (req, res) => {
         }
 
         await Project.removeMember(req.params.id, req.params.userId);
-        await Project.reassignTasks(req.params.userId); // Reassign tasks to backlog
+        await Project.reassignTasks(req.params.userId);
         res.json({ message: "Member removed and tasks reassigned to backlog" });
     } catch (err) {
         res.status(500).json({ message: "Error removing member", error: err.message });
@@ -361,7 +356,6 @@ exports.inviteMember = async (req, res) => {
             return res.status(403).json({ message: "Only Scrum Master can invite members" });
         }
 
-        // Check if user exists
         const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
         if (existingUser.length === 0) {
             return res.status(400).json({ message: "User with this email does not exist" });
@@ -369,15 +363,16 @@ exports.inviteMember = async (req, res) => {
 
         const userId = existingUser[0].id;
 
-        // Check if already member
         const [member] = await Project.getMembers(project_id);
         if (member.some(m => m.id === userId)) {
             return res.status(400).json({ message: "User is already a member of this project" });
         }
 
-        // Create invitation
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        const invitationCode = generateInvitationCode();
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        const [projectRows] = await Project.findById(project_id);
+        const projectName = projectRows.length > 0 ? projectRows[0].name : 'Project';
 
         await Project.inviteMember({
             id: uuid(),
@@ -385,20 +380,17 @@ exports.inviteMember = async (req, res) => {
             email,
             role: role || 'TEAM_MEMBER',
             invited_by: req.user.id,
-            token,
+            invitation_code: invitationCode,
             expires_at: expiresAt
         });
 
-        // Send email
-        const acceptLink = `${process.env.FRONTEND_URL}/auth/accept-invitation?token=${token}`;
-        const refuseLink = `${process.env.FRONTEND_URL}/auth/refuse-invitation?token=${token}`;
         try {
-            await sendInvitationEmail(email, acceptLink, refuseLink, role);
+            await sendInvitationEmail(email, invitationCode, projectName, role);
         } catch (error) {
             console.error('Error sending invitation email:', error);
         }
 
-        res.status(201).json({ message: "Invitation sent" });
+        res.status(201).json({ message: "Invitation sent", invitationCode });
     } catch (err) {
         res.status(500).json({ message: "Error sending invitation", error: err.message });
     }
@@ -406,16 +398,15 @@ exports.inviteMember = async (req, res) => {
 
 exports.acceptInvitation = async (req, res) => {
     try {
-        const { token } = req.body;
+        const { code, project_id } = req.body;
 
-        const [invitations] = await Project.getInvitationByToken(token);
+        const [invitations] = await Project.getInvitationByCode(code, project_id);
         if (invitations.length === 0) {
-            return res.status(400).json({ message: "Invalid or expired invitation" });
+            return res.status(400).json({ message: "Invalid or expired invitation code" });
         }
 
         const invitation = invitations[0];
 
-        // Add member
         await Project.addMember({
             id: uuid(),
             project_id: invitation.project_id,
@@ -423,7 +414,6 @@ exports.acceptInvitation = async (req, res) => {
             role: invitation.role
         });
 
-        // Update invitation status
         await Project.updateInvitationStatus(invitation.id, 'ACCEPTED');
 
         res.json({ message: "Invitation accepted, you are now a member of the project" });
@@ -434,14 +424,13 @@ exports.acceptInvitation = async (req, res) => {
 
 exports.refuseInvitation = async (req, res) => {
     try {
-        const { token } = req.body;
+        const { code, project_id } = req.body;
 
-        const [invitations] = await Project.getInvitationByToken(token);
+        const [invitations] = await Project.getInvitationByCode(code, project_id);
         if (invitations.length === 0) {
-            return res.status(400).json({ message: "Invalid or expired invitation" });
+            return res.status(400).json({ message: "Invalid or expired invitation code" });
         }
 
-        // Update invitation status
         await Project.updateInvitationStatus(invitations[0].id, 'REFUSED');
 
         res.json({ message: "Invitation refused" });
@@ -454,21 +443,18 @@ exports.getProjectDashboard = async (req, res) => {
     try {
         const projectId = req.params.id;
 
-        // Check if user is member
         const [members] = await Project.getMembers(projectId);
         const isMember = members.some(m => m.id === req.user.id);
         if (!isMember) {
             return res.status(403).json({ message: "Access denied" });
         }
 
-        // Current sprint
         const [sprints] = await db.query(
             "SELECT * FROM sprints WHERE project_id = ? AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1",
             [projectId]
         );
         const currentSprint = sprints[0] || null;
 
-        // Metrics
         const [taskStats] = await db.query(`
             SELECT
                 COUNT(*) as total_tasks,
@@ -482,13 +468,11 @@ exports.getProjectDashboard = async (req, res) => {
             total_tasks: taskStats[0].total_tasks,
             completed_tasks: taskStats[0].completed_tasks,
             overdue_tasks: taskStats[0].overdue_tasks,
-            average_velocity: 0 // Placeholder
+            average_velocity: 0
         };
 
-        // Active members
         const activeMembers = members;
 
-        // Upcoming deadlines (next 7 days)
         const [deadlines] = await db.query(`
             SELECT title, due_date FROM backlog_items
             WHERE project_id = ? AND due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)

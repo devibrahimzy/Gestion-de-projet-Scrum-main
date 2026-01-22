@@ -543,6 +543,12 @@ ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `tags` text DEFAULT NULL;
 ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `due_date` date DEFAULT NULL;
 ALTER TABLE `backlog_items` ADD COLUMN IF NOT EXISTS `is_blocked` tinyint(1) DEFAULT 0;
 
+-- Add invitation_code column for code-based invitations
+ALTER TABLE `project_invitations` ADD COLUMN IF NOT EXISTS `invitation_code` varchar(10) DEFAULT NULL AFTER `token`;
+
+-- Create index for faster lookup of invitations by code
+CREATE INDEX IF NOT EXISTS idx_invitation_code ON project_invitations (invitation_code);
+
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
