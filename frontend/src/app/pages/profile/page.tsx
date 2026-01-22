@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useAuthStore } from "@/features/auth/auth.store";
-import { usersService, UpdateUserDTO } from "@/features/users/users.service";
 import { authService } from "@/features/auth/auth.service";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -8,20 +7,21 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
-import { Loader2, User, Mail, Shield, Lock } from "lucide-react";
+import { Loader2, User, Mail, Shield, Lock, Calendar, Clock, FolderOpen, Camera } from "lucide-react";
 
 export default function ProfilePage() {
-    const { user, isAuthenticated } = useAuthStore();
+    const { user, isAuthenticated, setUser } = useAuthStore();
     const { toast } = useToast();
-    
+
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+    const [profileData, setProfileData] = useState<any>(null);
     const [formData, setFormData] = useState({
         first_name: "",
         last_name: "",
-        email: "",
+        profile_photo: "",
     });
     const [passwordData, setPasswordData] = useState({
         currentPassword: "",
@@ -30,14 +30,24 @@ export default function ProfilePage() {
     });
 
     useEffect(() => {
-        if (user) {
-            setFormData({
-                first_name: user.first_name || "",
-                last_name: user.last_name || "",
-                email: user.email,
-            });
+        const fetchProfile = async () => {
+            try {
+                const profile = await authService.getProfile();
+                setProfileData(profile);
+                setFormData({
+                    first_name: profile.first_name || "",
+                    last_name: profile.last_name || "",
+                    profile_photo: profile.profile_photo || "",
+                });
+            } catch (error) {
+                console.error("Failed to fetch profile:", error);
+            }
+        };
+
+        if (isAuthenticated) {
+            fetchProfile();
         }
-    }, [user]);
+    }, [isAuthenticated]);
 
     if (!isAuthenticated || !user) {
         return <div className="flex items-center justify-center py-12">
@@ -55,27 +65,28 @@ export default function ProfilePage() {
     const handleSave = async () => {
         try {
             setIsLoading(true);
-            
-            const updateData: UpdateUserDTO = {
+
+            const updateData = {
                 first_name: formData.first_name || undefined,
                 last_name: formData.last_name || undefined,
+                profile_photo: formData.profile_photo || undefined,
             };
-            
-            await usersService.update(user.id, updateData);
-            
+
+            await authService.updateProfile(updateData);
+
             // Update local user data
             const updatedUser = { ...user, ...updateData };
-            useAuthStore.setState({ user: updatedUser });
-            
+            setUser(updatedUser);
+
             // Update localStorage
             localStorage.setItem("authUser", JSON.stringify(updatedUser));
-            
+
             toast({ title: "Profile updated successfully!" });
             setIsEditing(false);
         } catch (error) {
-            toast({ 
-                title: "Failed to update profile", 
-                variant: "destructive" 
+            toast({
+                title: "Failed to update profile",
+                variant: "destructive"
             });
         } finally {
             setIsLoading(false);
@@ -84,9 +95,9 @@ export default function ProfilePage() {
 
     const handleCancel = () => {
         setFormData({
-            first_name: user.first_name || "",
-            last_name: user.last_name || "",
-            email: user.email,
+            first_name: profileData?.first_name || "",
+            last_name: profileData?.last_name || "",
+            profile_photo: profileData?.profile_photo || "",
         });
         setIsEditing(false);
     };
@@ -116,11 +127,10 @@ export default function ProfilePage() {
 
         try {
             setIsPasswordLoading(true);
-            // Use current password as token for reset (this assumes backend accepts current password as token)
-            await authService.resetPassword(passwordData.currentPassword, passwordData.newPassword);
-            
+            await authService.changePassword(passwordData.currentPassword, passwordData.newPassword);
+
             toast({ title: "Password changed successfully!" });
-            
+
             // Reset password form
             setPasswordData({
                 currentPassword: "",
@@ -129,9 +139,9 @@ export default function ProfilePage() {
             });
             setIsChangingPassword(false);
         } catch (error) {
-            toast({ 
-                title: "Failed to change password", 
-                variant: "destructive" 
+            toast({
+                title: "Failed to change password",
+                variant: "destructive"
             });
         } finally {
             setIsPasswordLoading(false);
@@ -223,7 +233,7 @@ export default function ProfilePage() {
                                 </p>
                             )}
                         </div>
-                        
+
                         <div className="space-y-2">
                             <Label htmlFor="last-name">Last Name</Label>
                             {isEditing ? (
@@ -242,13 +252,45 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="space-y-2">
+                        <Label htmlFor="profile-photo" className="flex items-center gap-2">
+                            <Camera className="h-4 w-4" />
+                            Profile Photo
+                        </Label>
+                        {isEditing ? (
+                            <Input
+                                id="profile-photo"
+                                value={formData.profile_photo}
+                                onChange={(e) => handleInputChange("profile_photo", e.target.value)}
+                                placeholder="Enter profile photo URL"
+                            />
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                {profileData?.profile_photo ? (
+                                    <img
+                                        src={profileData.profile_photo}
+                                        alt="Profile"
+                                        className="w-16 h-16 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                        <User className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                )}
+                                <p className="text-sm font-medium">
+                                    {profileData?.profile_photo ? "Profile photo set" : "No profile photo"}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
                         <Label htmlFor="email" className="flex items-center gap-2">
                             <Mail className="h-4 w-4" />
                             Email Address
                         </Label>
                         <p className="text-sm font-medium">{user.email}</p>
                         <p className="text-xs text-muted-foreground">
-                            Email cannot be changed
+                            Email can only be changed after email validation
                         </p>
                     </div>
 
@@ -268,6 +310,46 @@ export default function ProfilePage() {
                             <Badge className={user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                                 {user.isActive ? 'Active' : 'Inactive'}
                             </Badge>
+                        </div>
+                    )}
+
+                    {profileData?.created_at && (
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                Registration Date
+                            </Label>
+                            <p className="text-sm font-medium">
+                                {new Date(profileData.created_at).toLocaleDateString()}
+                            </p>
+                        </div>
+                    )}
+
+                    {profileData?.lastLogin && (
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Last Login
+                            </Label>
+                            <p className="text-sm font-medium">
+                                {new Date(profileData.lastLogin).toLocaleString()}
+                            </p>
+                        </div>
+                    )}
+
+                    {profileData?.projects && (
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <FolderOpen className="h-4 w-4" />
+                                Associated Projects
+                            </Label>
+                            <div className="flex flex-wrap gap-2">
+                                {profileData.projects.split(', ').map((project: string, index: number) => (
+                                    <Badge key={index} variant="outline">
+                                        {project}
+                                    </Badge>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -319,19 +401,16 @@ export default function ProfilePage() {
                 <CardContent className="space-y-6">
                     {isChangingPassword ? (
                         <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="current-password">Current Password (as token)</Label>
-                                <Input
-                                    id="current-password"
-                                    type="password"
-                                    value={passwordData.currentPassword}
-                                    onChange={(e) => handlePasswordInputChange("currentPassword", e.target.value)}
-                                    placeholder="Enter your current password"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Current password will be used as the reset token
-                                </p>
-                            </div>
+                             <div className="space-y-2">
+                                 <Label htmlFor="current-password">Current Password</Label>
+                                 <Input
+                                     id="current-password"
+                                     type="password"
+                                     value={passwordData.currentPassword}
+                                     onChange={(e) => handlePasswordInputChange("currentPassword", e.target.value)}
+                                     placeholder="Enter your current password"
+                                 />
+                             </div>
                             
                             <div className="space-y-2">
                                 <Label htmlFor="new-password">New Password</Label>

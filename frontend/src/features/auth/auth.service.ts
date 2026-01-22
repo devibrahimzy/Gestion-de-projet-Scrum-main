@@ -42,10 +42,15 @@ changeEmail: async (newEmail: string): Promise<{ message: string }> => {
     return response.data;
 },
 
-changePassword: async (oldPassword: string, newPassword: string): Promise<{ message: string }> => {
+ changePassword: async (oldPassword: string, newPassword: string): Promise<{ message: string }> => {
     const response = await api.put<{ message: string }>("auth/change-password", { old_password: oldPassword, new_password: newPassword });
     return response.data;
-},
+  },
+
+  updateProfile: async (data: { first_name?: string; last_name?: string; profile_photo?: string }): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }>("auth/profile", data);
+    return response.data;
+  },
 
     
 };

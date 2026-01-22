@@ -6,6 +6,10 @@ export interface User {
     role: 'ADMIN' | 'SCRUM_MASTER' | 'TEAM_MEMBER' | 'PRODUCT_OWNER';
     isActive?: boolean;
     is_verified?: boolean;
+    created_at?: string;
+    lastLogin?: string;
+    profile_photo?: string;
+    projects?: string;
 }
 
 export interface AuthResponse {

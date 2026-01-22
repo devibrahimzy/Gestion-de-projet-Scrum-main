@@ -343,24 +343,27 @@ CREATE TABLE `users` (
   `country` VARCHAR(100) DEFAULT NULL,
 
   -- Role & status
-  `role` ENUM('ADMIN','PRODUCT_OWNER','SCRUM_MASTER','TEAM_MEMBER')
-    NOT NULL DEFAULT 'TEAM_MEMBER',
+   `role` ENUM('ADMIN','PRODUCT_OWNER','SCRUM_MASTER','TEAM_MEMBER')
+     NOT NULL DEFAULT 'TEAM_MEMBER',
 
-  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
+   `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
 
-  -- Verification (reduced)
-  `is_verified` BOOLEAN NOT NULL DEFAULT FALSE,
-  `verification_code` VARCHAR(10) DEFAULT NULL,
+   -- Verification (reduced)
+   `is_verified` BOOLEAN NOT NULL DEFAULT FALSE,
+   `verification_code` VARCHAR(10) DEFAULT NULL,
 
-  -- Password reset
-  `reset_token` VARCHAR(255) DEFAULT NULL,
-  `reset_token_expires` TIMESTAMP NULL DEFAULT NULL,
+   -- Password reset
+   `reset_token` VARCHAR(255) DEFAULT NULL,
+   `reset_token_expires` TIMESTAMP NULL DEFAULT NULL,
 
-  -- Account locking
-  `failed_attempts` INT DEFAULT 0,
-  `lock_until` TIMESTAMP NULL DEFAULT NULL,
+   -- Account locking
+   `failed_attempts` INT DEFAULT 0,
+   `lock_until` TIMESTAMP NULL DEFAULT NULL,
 
-  PRIMARY KEY (`id`)
+   -- Last login tracking
+   `lastLogin` TIMESTAMP NULL DEFAULT NULL,
+
+   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_general_ci;
@@ -510,6 +513,9 @@ ADD COLUMN IF NOT EXISTS `objectives` text DEFAULT NULL;
 
 -- Add objective to sprints
 ALTER TABLE `sprints` ADD COLUMN IF NOT EXISTS `objective` text DEFAULT NULL;
+
+-- Add lastLogin to users
+ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `lastLogin` TIMESTAMP NULL DEFAULT NULL;
 
 -- Insert default Kanban columns for existing projects
 INSERT IGNORE INTO kanban_columns (id, project_id, name, position, wip_limit)
