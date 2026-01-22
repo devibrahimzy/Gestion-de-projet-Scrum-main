@@ -31,7 +31,7 @@ import { Label } from "@/shared/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { sprintsService } from "@/features/sprints/sprints.service";
 import { Sprint, UpdateSprintDTO } from "@/features/sprints/sprints.types";
-import { PlusCircle, MoreHorizontal, CalendarIcon, Play, CheckCircle, Trash2, Eye, GitBranch, Edit, Target, TrendingUp, History } from "lucide-react";
+import { PlusCircle, MoreHorizontal, CalendarIcon, Play, CheckCircle, Trash2, Eye, GitBranch, Edit, Target, TrendingUp, History, Users } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -201,7 +201,13 @@ export default function SprintsPage() {
                     <Link to={`/projects/${projectId}/sprints/history`}>
                         <Button variant="outline">
                             <History className="mr-2 h-4 w-4" />
-                            History
+                            Sprint History
+                        </Button>
+                    </Link>
+                    <Link to={`/projects/${projectId}/retrospectives`}>
+                        <Button variant="outline">
+                            <Users className="mr-2 h-4 w-4" />
+                            Retrospectives
                         </Button>
                     </Link>
                     <Dialog open={isCreateOpen} onOpenChange={setCreateOpen}>

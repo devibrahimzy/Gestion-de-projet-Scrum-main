@@ -23,6 +23,7 @@ import ActiveSprintPage from "./pages/projects/[id]/sprints/active/page";
 import SprintPlanningPage from "./pages/projects/[id]/sprints/planning/page";
 import SprintHistoryPage from "./pages/projects/[id]/sprints/history/page";
 import SprintRetrospective from "./pages/projects/[id]/sprints/[sprintId]/retrospective/page";
+import RetrospectiveHistoryPage from "./pages/projects/[id]/retrospectives/page";
 import ProjectKanban from "./pages/projects/[id]/kanban/page";
 import ProjectMembers from "./pages/projects/[id]/members/page";
 import ProjectAnalytics from "./pages/projects/[id]/analytics/page";
@@ -55,6 +56,7 @@ export const AppRouter: React.FC = () => {
               <Route path="/projects/:id/sprints/planning" element={<SprintPlanningPage />} />
               <Route path="/projects/:id/sprints/history" element={<SprintHistoryPage />} />
               <Route path="/projects/:id/sprints/:sprintId/retrospective" element={<SprintRetrospective />} />
+              <Route path="/projects/:id/retrospectives" element={<RetrospectiveHistoryPage />} />
               <Route path="/projects/:id/kanban" element={<ProjectKanban />} />
               <Route path="/projects/:id/members" element={<ProjectMembers />} />
               <Route path="/projects/:id/analytics" element={<ProjectAnalytics />} />
