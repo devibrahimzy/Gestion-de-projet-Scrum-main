@@ -138,6 +138,7 @@ export default function ProjectOverview() {
   const overdueItems = summary?.overdue_items || 0;
   const totalStoryPoints = summary?.total_story_points || 0;
   const completedStoryPoints = summary?.completed_story_points || 0;
+  const completionRate = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
   // Sprint calculations
   const sprintProgress = currentSprint ? (currentSprint.total_story_points > 0 ? (currentSprint.completed_story_points / currentSprint.total_story_points) * 100 : 0) : 0;
