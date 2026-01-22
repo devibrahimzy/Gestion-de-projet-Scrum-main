@@ -14,6 +14,7 @@ import {
 } from "@/shared/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { sprintsService } from "@/features/sprints/sprints.service";
+import { backlogService } from "@/features/backlog/backlog.service";
 import VelocityChart from "@/features/sprints/VelocityChart";
 import { SprintHistory, VelocityChartData } from "@/features/sprints/sprints.types";
 import { ArrowLeft, History, TrendingUp, Target, CheckCircle } from "lucide-react";
@@ -33,26 +34,52 @@ export default function SprintHistoryPage() {
 
             // Get completed sprints
             const sprints = await sprintsService.getByProject(projectId);
-            const completed = sprints
-                .filter(s => s.status === 'COMPLETED')
-                .map(sprint => ({
-                    id: sprint.id,
-                    name: sprint.name,
-                    objective: sprint.objective,
-                    start_date: sprint.start_date,
-                    end_date: sprint.end_date,
-                    status: sprint.status,
-                    planned_velocity: sprint.planned_velocity,
-                    actual_velocity: sprint.actual_velocity,
-                    completed_items: 0, // We'll need to calculate this
-                    pending_items: 0
-                }))
-                .sort((a, b) => new Date(b.end_date || 0).getTime() - new Date(a.end_date || 0).getTime());
+            const completedSprints = sprints.filter(s => s.status === 'COMPLETED');
 
-            setCompletedSprints(completed);
+            // Fetch items for each completed sprint and calculate completed/pending counts
+            const completed = await Promise.all(
+                completedSprints.map(async (sprint) => {
+                    try {
+                        const items = await backlogService.getBySprint(sprint.id);
+                        const completed_items = items.filter(item => item.status === 'DONE').length;
+                        const pending_items = items.filter(item => item.status !== 'DONE').length;
+
+                        return {
+                            id: sprint.id,
+                            name: sprint.name,
+                            objective: sprint.objective,
+                            start_date: sprint.start_date,
+                            end_date: sprint.end_date,
+                            status: sprint.status,
+                            planned_velocity: sprint.planned_velocity,
+                            actual_velocity: sprint.actual_velocity,
+                            completed_items,
+                            pending_items
+                        };
+                    } catch (error) {
+                        // If fetching items fails, return with zeros
+                        return {
+                            id: sprint.id,
+                            name: sprint.name,
+                            objective: sprint.objective,
+                            start_date: sprint.start_date,
+                            end_date: sprint.end_date,
+                            status: sprint.status,
+                            planned_velocity: sprint.planned_velocity,
+                            actual_velocity: sprint.actual_velocity,
+                            completed_items: 0,
+                            pending_items: 0
+                        };
+                    }
+                })
+            );
+
+            const completedSorted = completed.sort((a, b) => new Date(b.end_date || 0).getTime() - new Date(a.end_date || 0).getTime());
+
+            setCompletedSprints(completedSorted);
 
             // Get velocity chart data
-            if (completed.length > 0) {
+            if (completedSorted.length > 0) {
                 const velocity = await sprintsService.getVelocityChart(projectId);
                 setVelocityData(velocity);
             }

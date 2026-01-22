@@ -142,10 +142,17 @@ export default function ProjectOverview() {
 
   // Sprint calculations
   const sprintProgress = currentSprint ? (currentSprint.total_story_points > 0 ? (currentSprint.completed_story_points / currentSprint.total_story_points) * 100 : 0) : 0;
+  
+  // Calculate days remaining correctly
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = currentSprint ? new Date(currentSprint.end_date) : null;
+  endDate?.setHours(0, 0, 0, 0);
+  const daysRemaining = endDate ? Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
   // Velocity comparison
-  const avgVelocity = velocityComparison?.avg_velocity || 0;
-  const currentVelocity = velocityComparison?.current_velocity || 0;
+  const avgVelocity = Number(velocityComparison?.avg_velocity) || 0;
+  const currentVelocity = Number(velocityComparison?.current_velocity) || 0;
   const velocityDiff = currentVelocity - avgVelocity;
 
   return (
@@ -168,11 +175,11 @@ export default function ProjectOverview() {
             </CardTitle>
             <CardDescription>
               {new Date(currentSprint.start_date).toLocaleDateString()} - {new Date(currentSprint.end_date).toLocaleDateString()}
-              <span className="ml-2">
-                <Badge variant={currentSprint.days_remaining > 0 ? "default" : "destructive"}>
-                  {currentSprint.days_remaining} days remaining
-                </Badge>
-              </span>
+               <span className="ml-2">
+                 <Badge variant={daysRemaining > 0 ? "default" : "destructive"}>
+                   {daysRemaining} days remaining
+                 </Badge>
+               </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
