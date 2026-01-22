@@ -15,7 +15,7 @@ const ProtectedRoute = ({ redirectTo = "/auth/login" }: ProtectedRouteProps) => 
 
   // 🚫 Not authenticated
   if (!isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+ 
   }
 
   // ✅ Authenticated → render children routes

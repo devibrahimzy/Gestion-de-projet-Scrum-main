@@ -215,7 +215,7 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
-  const { first_name, last_name, profile_photo } = req.body; // Add preferences later
+  const { first_name, last_name, profile_photo } = req.body;
 
   await User.updateProfile(req.user.id, { first_name, last_name, profile_photo });
   res.json({ message: "Profile updated successfully" });

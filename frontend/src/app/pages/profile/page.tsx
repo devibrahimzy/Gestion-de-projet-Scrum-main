@@ -9,6 +9,25 @@ import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Loader2, User, Mail, Shield, Lock, Calendar, Clock, FolderOpen, Camera } from "lucide-react";
 
+interface Profile {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    created_at: string;
+    isActive: number;
+    lastLogin: string;
+    profile_photo: string | null;
+    projects: string | null;
+}
+
+interface FormDataType {
+    first_name: string;
+    last_name: string;
+    profile_photo: string;
+}
+
 export default function ProfilePage() {
     const { user, isAuthenticated, setUser } = useAuthStore();
     const { toast } = useToast();
@@ -17,8 +36,8 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [isPasswordLoading, setIsPasswordLoading] = useState(false);
-    const [profileData, setProfileData] = useState<any>(null);
-    const [formData, setFormData] = useState({
+    const [profileData, setProfileData] = useState<Profile | null>(null);
+    const [formData, setFormData] = useState<FormDataType>({
         first_name: "",
         last_name: "",
         profile_photo: "",
@@ -74,8 +93,17 @@ export default function ProfilePage() {
 
             await authService.updateProfile(updateData);
 
+            // Refetch profile data
+            const updatedProfile = await authService.getProfile();
+            setProfileData(updatedProfile);
+            setFormData({
+                first_name: updatedProfile.first_name || "",
+                last_name: updatedProfile.last_name || "",
+                profile_photo: updatedProfile.profile_photo || "",
+            });
+
             // Update local user data
-            const updatedUser = { ...user, ...updateData };
+            const updatedUser = { ...user, ...updatedProfile };
             setUser(updatedUser);
 
             toast({ title: "Profile updated successfully!" });
@@ -226,7 +254,7 @@ export default function ProfilePage() {
                                 />
                             ) : (
                                 <p className="text-sm font-medium">
-                                    {user.first_name || "Not set"}
+                                    {profileData?.first_name || "Not set"}
                                 </p>
                             )}
                         </div>
@@ -242,7 +270,7 @@ export default function ProfilePage() {
                                 />
                             ) : (
                                 <p className="text-sm font-medium">
-                                    {user.last_name || "Not set"}
+                                    {profileData?.last_name || "Not set"}
                                 </p>
                             )}
                         </div>
@@ -253,30 +281,30 @@ export default function ProfilePage() {
                             <Camera className="h-4 w-4" />
                             Profile Photo
                         </Label>
-                        {isEditing ? (
-                            <Input
-                                id="profile-photo"
-                                value={formData.profile_photo}
-                                onChange={(e) => handleInputChange("profile_photo", e.target.value)}
-                                placeholder="Enter profile photo URL"
-                            />
-                        ) : (
-                            <div className="flex items-center gap-4">
-                                {profileData?.profile_photo ? (
-                                    <img
-                                        src={profileData.profile_photo}
-                                        alt="Profile"
-                                        className="w-16 h-16 rounded-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                                        <User className="h-8 w-8 text-muted-foreground" />
-                                    </div>
-                                )}
-                                <p className="text-sm font-medium">
-                                    {profileData?.profile_photo ? "Profile photo set" : "No profile photo"}
-                                </p>
-                            </div>
+                         {isEditing ? (
+                             <Input
+                                 id="profile-photo"
+                                 value={typeof formData.profile_photo === 'string' ? formData.profile_photo : ''}
+                                 onChange={(e) => handleInputChange("profile_photo", e.target.value)}
+                                 placeholder="Enter profile photo path"
+                             />
+                         ) : (
+                             <div className="flex items-center gap-4">
+                                 {profileData?.profile_photo ? (
+                                     <img
+                                         src={profileData.profile_photo}
+                                         alt="Profile"
+                                         className="w-16 h-16 rounded-full object-cover"
+                                     />
+                                 ) : (
+                                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                         <User className="h-8 w-8 text-muted-foreground" />
+                                     </div>
+                                 )}
+                                 <p className="text-sm font-medium">
+                                     {profileData?.profile_photo ? "Profile photo set" : "No profile photo"}
+                                 </p>
+                             </div>
                         )}
                     </div>
 
