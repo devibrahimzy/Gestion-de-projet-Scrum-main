@@ -15,6 +15,7 @@ router.get("/:id/dashboard", auth, projectController.getProjectDashboard);
 
 router.get("/:id/members", auth, projectController.getProjectMembers);
 router.post("/members", auth, projectController.addMember);
+router.put("/:projectId/members/:userId/role", auth, projectController.updateMemberRole);
 router.post("/invite", auth, projectController.inviteMember);
 router.post("/accept-invitation", auth, projectController.acceptInvitation);
 router.post("/refuse-invitation", auth, projectController.refuseInvitation);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import {
   Table,
@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -27,10 +28,8 @@ import {
 } from "@/shared/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { projectsService } from "@/features/projects/projects.service";
-import { usersService } from "@/features/users/users.service";
 import { ProjectMemberWithUser } from "@/features/projects/projects.types";
-import { User } from "@/features/auth/auth.types";
-import { PlusCircle, Trash2, UserPlus } from "lucide-react";
+import { Trash2, Mail } from "lucide-react";
 
 type MemberRole = 'PRODUCT_OWNER' | 'SCRUM_MASTER' | 'TEAM_MEMBER';
 
@@ -45,11 +44,10 @@ export default function MembersPage() {
     const { toast } = useToast();
 
     const [members, setMembers] = useState<ProjectMemberWithUser[]>([]);
-    const [allUsers, setAllUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAddMemberOpen, setAddMemberOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<string>("");
-    const [selectedRole, setSelectedRole] = useState<MemberRole>("TEAM_MEMBER");
+    const [isInviteMemberOpen, setIsInviteMemberOpen] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState<string>("");
+    const [inviteRole, setInviteRole] = useState<MemberRole>("TEAM_MEMBER");
 
     const fetchMembers = async () => {
         if (!projectId) return;
@@ -68,44 +66,31 @@ export default function MembersPage() {
         }
     };
 
-    const fetchAllUsers = async () => {
-        try {
-            const users = await usersService.getAll();
-            setAllUsers(users);
-        } catch (error) {
-            toast({
-                title: "Error fetching users",
-                description: "Could not load users for invitation.",
-                variant: "destructive",
-            });
-        }
-    };
-
     useEffect(() => {
         fetchMembers();
-        fetchAllUsers();
     }, [projectId]);
 
-    const handleAddMember = async () => {
-        if (!projectId || !selectedUser) {
-            toast({ title: "Please select a user.", variant: "destructive" });
+
+
+    const handleInviteMember = async () => {
+        if (!projectId || !inviteEmail.trim()) {
+            toast({ title: "Please enter a valid email address.", variant: "destructive" });
             return;
         }
 
         try {
-            await projectsService.addMember({
+            await projectsService.inviteMember({
                 project_id: projectId,
-                user_id: selectedUser,
-                role: selectedRole,
+                email: inviteEmail.trim(),
+                role: inviteRole,
             });
-            toast({ title: "Member added successfully!" });
-            fetchMembers(); // Refresh member list
-            setAddMemberOpen(false);
-            setSelectedUser("");
+            toast({ title: "Invitation sent successfully!", description: "The user will receive an email with instructions to join the project." });
+            setIsInviteMemberOpen(false);
+            setInviteEmail("");
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || "An unexpected error occurred.";
             toast({
-                title: "Failed to add member",
+                title: "Failed to send invitation",
                 description: errorMessage,
                 variant: "destructive",
             });
@@ -115,11 +100,11 @@ export default function MembersPage() {
     const handleRemoveMember = async (userId: string) => {
         if (!projectId) return;
 
-        if (!window.confirm("Are you sure you want to remove this member?")) return;
+        if (!window.confirm("Are you sure you want to remove this member? Their assigned tasks will be moved back to the backlog.")) return;
 
         try {
             await projectsService.removeMember(projectId, userId);
-            toast({ title: "Member removed successfully!" });
+            toast({ title: "Member removed successfully!", description: "Their tasks have been reassigned to the backlog." });
             fetchMembers(); // Refresh member list
         } catch (error) {
             toast({
@@ -130,10 +115,23 @@ export default function MembersPage() {
         }
     };
 
-    const availableUsers = useMemo(() => {
-        const memberIds = new Set(members.map(m => m.id));
-        return allUsers.filter(u => !memberIds.has(u.id) && u.role !== 'ADMIN');
-    }, [allUsers, members]);
+    const handleChangeRole = async (userId: string, newRole: MemberRole) => {
+        if (!projectId) return;
+
+        try {
+            await projectsService.updateMemberRole(projectId, userId, newRole);
+            toast({ title: "Member role updated successfully!" });
+            fetchMembers(); // Refresh member list
+        } catch (error) {
+            toast({
+                title: "Failed to update member role",
+                description: "An unexpected error occurred.",
+                variant: "destructive",
+            });
+        }
+    };
+
+
 
 
     if (loading) {
@@ -144,33 +142,31 @@ export default function MembersPage() {
         <div className="container mx-auto py-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Project Members</h1>
-                <Dialog open={isAddMemberOpen} onOpenChange={setAddMemberOpen}>
+
+                <Dialog open={isInviteMemberOpen} onOpenChange={setIsInviteMemberOpen}>
                     <DialogTrigger asChild>
-                        <Button>
-                            <UserPlus className="mr-2 h-4 w-4" /> Add Member
+                        <Button variant="outline">
+                            <Mail className="mr-2 h-4 w-4" /> Invite Member
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Add a new member</DialogTitle>
+                            <DialogTitle>Invite a new member</DialogTitle>
                             <DialogDescription>
-                                Select a user and assign them a role in the project.
+                                Send an invitation email to add someone to the project.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            <Select onValueChange={setSelectedUser} value={selectedUser}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a user to add" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableUsers.map(user => (
-                                        <SelectItem key={user.id} value={user.id}>
-                                            {user.first_name} {user.last_name} ({user.email})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select onValueChange={(value) => setSelectedRole(value as MemberRole)} value={selectedRole}>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Email Address</label>
+                                <Input
+                                    type="email"
+                                    placeholder="user@example.com"
+                                    value={inviteEmail}
+                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                />
+                            </div>
+                            <Select onValueChange={(value) => setInviteRole(value as MemberRole)} value={inviteRole}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
@@ -182,8 +178,8 @@ export default function MembersPage() {
                             </Select>
                         </div>
                         <DialogFooter>
-                            <Button variant="ghost" onClick={() => setAddMemberOpen(false)}>Cancel</Button>
-                            <Button onClick={handleAddMember}>Add Member</Button>
+                            <Button variant="ghost" onClick={() => setIsInviteMemberOpen(false)}>Cancel</Button>
+                            <Button onClick={handleInviteMember}>Send Invitation</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -205,7 +201,21 @@ export default function MembersPage() {
                                 <TableRow key={member.id}>
                                     <TableCell className="font-medium">{member.first_name} {member.last_name}</TableCell>
                                     <TableCell className="text-muted-foreground">{member.email}</TableCell>
-                                    <TableCell>{roleDisplayNames[member.role]}</TableCell>
+                                     <TableCell>
+                                         <Select
+                                             value={member.role}
+                                             onValueChange={(value) => handleChangeRole(member.id, value as MemberRole)}
+                                         >
+                                             <SelectTrigger className="w-40">
+                                                 <SelectValue />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                                 {Object.entries(roleDisplayNames).map(([key, value]) => (
+                                                     <SelectItem key={key} value={key}>{value}</SelectItem>
+                                                 ))}
+                                             </SelectContent>
+                                         </Select>
+                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button
                                             variant="ghost"

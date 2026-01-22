@@ -9,6 +9,8 @@ import RegisterPage from "./pages/auth/register/page";
 import VerifyEmailPage from "./pages/auth/verify-email/page";
 import ForgotPasswordPage from "./pages/auth/forgot-password/page";
 import ResetPasswordPage from "./pages/auth/reset-password/page";
+import AcceptInvitationPage from "./pages/auth/accept-invitation/page";
+import RefuseInvitationPage from "./pages/auth/refuse-invitation/page";
 import AdminUsersPage from "./pages/admin/users/page";
 import AdminUserDetailsPage from "./pages/admin/users/[id]/page";
 import AdminProjectsPage from "./pages/admin/projects/page";
@@ -34,6 +36,8 @@ export const AppRouter: React.FC = () => {
         <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/auth/accept-invitation" element={<AcceptInvitationPage />} />
+        <Route path="/auth/refuse-invitation" element={<RefuseInvitationPage />} />
         
         {/* 🔐 PROTECTED ROUTES */}
         <Route element={<ProtectedRoute />}>

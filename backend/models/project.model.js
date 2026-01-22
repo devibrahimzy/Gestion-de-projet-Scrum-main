@@ -108,6 +108,13 @@ exports.update = (id, updates, userId) => {
     );
 };
 
+exports.updateMemberRole = (projectId, userId, role) => {
+    return db.query(
+        "UPDATE project_members SET role = ? WHERE project_id = ? AND user_id = ?",
+        [role, projectId, userId]
+    );
+};
+
 exports.logChange = (projectId, userId, action, fieldChanged, oldValue, newValue) => {
     const { v4: uuid } = require('uuid');
     return db.query(

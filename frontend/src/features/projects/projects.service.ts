@@ -56,4 +56,24 @@ export const projectsService = {
         const response = await api.delete<{ message: string }>(`/projects/${projectId}/members/${userId}`);
         return response.data;
     },
+
+    inviteMember: async (data: { project_id: string; email: string; role: 'PRODUCT_OWNER' | 'SCRUM_MASTER' | 'TEAM_MEMBER' }): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>("/projects/invite", data);
+        return response.data;
+    },
+
+    updateMemberRole: async (projectId: string, userId: string, role: 'PRODUCT_OWNER' | 'SCRUM_MASTER' | 'TEAM_MEMBER'): Promise<{ message: string }> => {
+        const response = await api.put<{ message: string }>(`/projects/${projectId}/members/${userId}/role`, { role });
+        return response.data;
+    },
+
+    acceptInvitation: async (token: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>("/projects/accept-invitation", { token });
+        return response.data;
+    },
+
+    refuseInvitation: async (token: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>("/projects/refuse-invitation", { token });
+        return response.data;
+    },
 };

@@ -2,6 +2,7 @@ const Project = require("../models/project.model");
 const { v4: uuid } = require("uuid");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const db = require("../config/database");
 
 // Email transporter
 const transporter = nodemailer.createTransport({
@@ -12,12 +13,36 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendInvitationEmail = async (email, link, role) => {
+const sendInvitationEmail = async (email, acceptLink, refuseLink, role) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
     subject: 'Project Invitation',
-    text: `You have been invited to join the project as ${role}. Click here to accept: ${link}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>You have been invited to join a project!</h2>
+        <p>You have been invited to join a project as <strong>${role.replace('_', ' ')}</strong>.</p>
+
+        <div style="margin: 30px 0;">
+          <a href="${acceptLink}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Accept Invitation</a>
+          <a href="${refuseLink}" style="background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Decline Invitation</a>
+        </div>
+
+        <p><strong>Please note:</strong> This invitation will expire in 7 days.</p>
+        <p>If the buttons don't work, you can copy and paste these links into your browser:</p>
+        <p>Accept: ${acceptLink}</p>
+        <p>Decline: ${refuseLink}</p>
+
+        <hr style="margin: 30px 0;">
+        <p style="color: #666; font-size: 12px;">This is an automated message. Please do not reply to this email.</p>
+      </div>
+    `,
+    text: `You have been invited to join a project as ${role.replace('_', ' ')}.
+
+To accept the invitation, visit: ${acceptLink}
+To decline the invitation, visit: ${refuseLink}
+
+This invitation will expire in 7 days.`,
   };
   await transporter.sendMail(mailOptions);
 };
@@ -289,6 +314,29 @@ exports.getProjectMembers = async (req, res) => {
     }
 };
 
+exports.updateMemberRole = async (req, res) => {
+    try {
+        const { projectId, userId } = req.params;
+        const { role } = req.body;
+
+        const allowed = await isScrumMaster(projectId, req.user.id);
+        if (!allowed) {
+            return res.status(403).json({ message: "Only Scrum Master can update member roles" });
+        }
+
+        // Validate role
+        const validRoles = ['PRODUCT_OWNER', 'SCRUM_MASTER', 'TEAM_MEMBER'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({ message: "Invalid role" });
+        }
+
+        await Project.updateMemberRole(projectId, userId, role);
+        res.json({ message: "Member role updated successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error updating member role", error: err.message });
+    }
+};
+
 exports.removeMember = async (req, res) => {
     try {
         const allowed = await isScrumMaster(req.params.id, req.user.id);
@@ -342,9 +390,10 @@ exports.inviteMember = async (req, res) => {
         });
 
         // Send email
-        const inviteLink = `${process.env.FRONTEND_URL}/accept-invitation?token=${token}`;
+        const acceptLink = `${process.env.FRONTEND_URL}/auth/accept-invitation?token=${token}`;
+        const refuseLink = `${process.env.FRONTEND_URL}/auth/refuse-invitation?token=${token}`;
         try {
-            await sendInvitationEmail(email, inviteLink, role);
+            await sendInvitationEmail(email, acceptLink, refuseLink, role);
         } catch (error) {
             console.error('Error sending invitation email:', error);
         }
