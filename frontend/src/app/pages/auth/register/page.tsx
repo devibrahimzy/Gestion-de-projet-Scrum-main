@@ -50,7 +50,7 @@ export default function RegisterPage() {
   const handleRoleChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
-      role: value as "TEAM_MEMBER" | "SCRUM_MASTER" | "ADMIN" | "PRODUCT_OWNER",
+      role: value as "TEAM_MEMBER" | "SCRUM_MASTER" | "PRODUCT_OWNER",
     }));
     if (errors.role) {
       setErrors((prev) => ({
@@ -236,7 +236,6 @@ export default function RegisterPage() {
                    <SelectContent>
                      <SelectItem value="TEAM_MEMBER">Team Member</SelectItem>
                      <SelectItem value="SCRUM_MASTER">Scrum Master</SelectItem>
-                     <SelectItem value="ADMIN">Admin</SelectItem>
                      <SelectItem value="PRODUCT_OWNER">Product Owner</SelectItem>
                    </SelectContent>
                 </Select>

@@ -262,10 +262,7 @@ export default function AnalyticsPage() {
               <Activity className="h-4 w-4" />
               Health Indicators
             </TabsTrigger>
-            <TabsTrigger value="sprints" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Sprints
-            </TabsTrigger>
+            
          </TabsList>
 
          {/* Overview Tab */}
@@ -383,54 +380,8 @@ export default function AnalyticsPage() {
            </div>
          </TabsContent>
 
-         {/* Sprints Tab */}
-         <TabsContent value="sprints" className="space-y-6">
-           <Card>
-             <CardHeader>
-               <CardTitle className="flex items-center gap-2">
-                 <Calendar className="h-5 w-5" />
-                 Sprint History
-               </CardTitle>
-               <CardDescription>Overview of all project sprints</CardDescription>
-             </CardHeader>
-             <CardContent>
-               {sprints.length > 0 ? (
-                 <div className="space-y-4">
-                   {sprints.map((sprint, index) => (
-                     <div key={index} className="p-4 rounded-lg border">
-                       <div className="flex items-center justify-between mb-3">
-                         <div>
-                           <div className="font-medium">{sprint.name}</div>
-                           <Badge variant={sprint.status === 'ACTIVE' ? 'default' : sprint.status === 'COMPLETED' ? 'secondary' : 'outline'}>
-                             {sprint.status}
-                           </Badge>
-                         </div>
-                         <div className="text-right">
-                           <div className="text-sm font-medium">{sprint.done_tasks}/{sprint.total_tasks} tasks</div>
-                           <div className="text-sm text-muted-foreground">
-                             {sprint.total_tasks > 0 ? `${((sprint.done_tasks / sprint.total_tasks) * 100).toFixed(1)}%` : '0%'} complete
-                           </div>
-                         </div>
-                       </div>
-                       {sprint.total_tasks > 0 && (
-                         <div className="w-full bg-muted rounded-full h-2">
-                           <div
-                             className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                             style={{ width: `${(sprint.done_tasks / sprint.total_tasks) * 100}%` }}
-                           />
-                         </div>
-                       )}
-                     </div>
-                   ))}
-                 </div>
-               ) : (
-                 <div className="text-center py-16 text-muted-foreground text-sm">
-                   No sprint data available
-                 </div>
-               )}
-             </CardContent>
-           </Card>
-         </TabsContent>
+      
+         
 
 
 
