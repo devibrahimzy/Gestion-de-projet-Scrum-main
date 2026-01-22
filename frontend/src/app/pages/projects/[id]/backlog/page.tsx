@@ -358,24 +358,38 @@ export default function BacklogPage() {
 
   // Drag and Drop
   const handleDragEnd = async (result: { destination?: { index: number }; source: { index: number } }) => {
-    if (!result.destination) return;
+    if (!result.destination || !projectId) return;
 
-    const items = Array.from(backlogItems);
+    // If filters are active, only allow reordering within the same filtered set
+    const hasActiveFilters = searchQuery ||
+      filters.type?.length ||
+      filters.priority?.length ||
+      filters.tags?.length ||
+      filters.assigned_to_id ||
+      filters.sprint_id ||
+      filters.status?.length;
+
+    if (hasActiveFilters) {
+      toast({
+        title: "Cannot reorder while filters are active",
+        description: "Please clear all filters before reordering items.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const items = Array.from(filteredItems);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    // Update positions
-    const updatedItems = items.map((item, index) => ({
-      ...item,
-      position: index + 1
-    }));
-
-    setBacklogItems(updatedItems);
+    // Update local state immediately for optimistic UI
+    setBacklogItems(items);
 
     try {
-      await backlogService.reorder(projectId!, updatedItems.map(item => item.id));
+      await backlogService.reorder(projectId!, items.map(item => item.id));
       toast({ title: "Backlog reordered successfully." });
     } catch (err) {
+      console.error('Reorder error:', err);
       // Revert on error
       await fetchBacklogItems();
       toast({ title: "Error reordering backlog.", variant: "destructive" });

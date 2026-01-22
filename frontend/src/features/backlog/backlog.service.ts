@@ -53,7 +53,7 @@ export const backlogService = {
     },
 
     reorder: async (projectId: string, itemIds: string[]): Promise<{ message: string }> => {
-        const response = await api.put<{ message: string }>(`/backlog/reorder`, { projectId, itemIds });
+        const response = await api.post<{ message: string }>(`/backlog/reorder`, { projectId, itemIds });
         return response.data;
     },
 

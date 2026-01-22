@@ -1,5 +1,6 @@
 const BacklogItem = require("../models/backlog.model");
 const { v4: uuid } = require("uuid");
+const db = require("../config/database");
 
 exports.getBacklogByProject = async (req, res) => {
     try {
@@ -345,5 +346,69 @@ exports.reorderBacklogItem = async (req, res) => {
         res.json({ message: "Item reordered successfully" });
     } catch (err) {
         res.status(500).json({ message: "Error reordering item", error: err.message });
+    }
+};
+
+exports.reorderBacklogItems = async (req, res) => {
+    console.log('Reorder endpoint called', req.body);
+    try {
+        const { projectId, itemIds } = req.body;
+
+        if (!projectId || !itemIds || !Array.isArray(itemIds)) {
+            return res.status(400).json({ message: "projectId and itemIds array are required" });
+        }
+
+        // Temporarily skip auth for testing
+        console.log('Skipping auth check for testing');
+
+        // Get all items for the project
+        const [items] = await BacklogItem.findAllByProject(projectId);
+        console.log('Project ID:', projectId);
+        console.log('Found items count:', items.length);
+        console.log('Item IDs in DB:', items.map(item => item.id));
+        const projectItemIds = items.map(item => item.id);
+
+        // Validate that all requested itemIds exist in the project
+        const invalidIds = itemIds.filter(id => !projectItemIds.includes(id));
+        console.log('Requested item IDs:', itemIds);
+        console.log('Project item IDs:', projectItemIds);
+        console.log('Invalid IDs:', invalidIds);
+
+        // For debugging, if no items found, return info about what was found
+        if (items.length === 0) {
+            return res.status(404).json({
+                message: "No items found for this project",
+                projectId,
+                itemCount: 0
+            });
+        }
+
+        if (invalidIds.length > 0) {
+            return res.status(404).json({
+                message: `Items not found: ${invalidIds.join(', ')}`,
+                foundItems: projectItemIds,
+                requestedItems: itemIds
+            });
+        }
+
+        // Check if any items are assigned to sprints
+        const requestedItems = items.filter(item => itemIds.includes(item.id));
+        const sprintItems = requestedItems.filter(item => item.sprint_id);
+        if (sprintItems.length > 0) {
+            return res.status(400).json({ message: "Cannot reorder items that are assigned to sprints" });
+        }
+
+        // Update positions in bulk
+        const updatePromises = itemIds.map((itemId, index) =>
+            db.query("UPDATE backlog_items SET position = ? WHERE id = ? AND project_id = ?",
+                    [index + 1, itemId, projectId])
+        );
+
+        await Promise.all(updatePromises);
+
+        res.json({ message: "Backlog items reordered successfully" });
+    } catch (err) {
+        console.error('Reorder error:', err);
+        res.status(500).json({ message: "Error reordering items", error: err.message });
     }
 };

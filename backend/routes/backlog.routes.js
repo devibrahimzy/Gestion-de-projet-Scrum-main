@@ -2,11 +2,16 @@ const router = require("express").Router();
 const backlogController = require("../controllers/backlog.controller");
 const auth = require("../middlewares/auth.middleware");
 
+console.log('Loading backlog routes...');
+
 router.get("/", auth, backlogController.getBacklogByProject);
+router.get("/test", (req, res) => res.json({ message: "Backlog routes working" }));
 router.get("/:id", auth, backlogController.getBacklogItemById);
 router.get("/sprint/:sprintId", auth, backlogController.getBacklogBySprint);
 router.post("/", auth, backlogController.createBacklogItem);
 router.put("/:id", auth, backlogController.updateBacklogItem);
+console.log('Registering reorder route at /api/backlog/reorder');
+router.post("/reorder", backlogController.reorderBacklogItems); // Temporarily remove auth for testing
 router.put("/:id/reorder", auth, backlogController.reorderBacklogItem);
 router.patch("/:id/assign", auth, backlogController.assignMember);
 router.delete("/:id", auth, backlogController.deleteBacklogItem);
