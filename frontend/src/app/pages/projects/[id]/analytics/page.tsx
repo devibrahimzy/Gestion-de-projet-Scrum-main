@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { dashboardService } from '@/features/dashboard/dashboard.service';
 import { retrospectivesService } from '@/features/retrospectives/retrospectives.service';
-import { VelocityData, AgilePerformance } from '@/features/dashboard/dashboard.types';
+import { VelocityData, AgilePerformance, MemberWorkload, HealthIndicators } from '@/features/dashboard/dashboard.types';
 import { Retrospective } from '@/features/retrospectives/retrospectives.types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { Badge } from '@/shared/components/ui/badge';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { AlertCircle, TrendingUp, BarChart3, Zap, Target, GitPullRequest, Calendar, MessageSquare, CheckCircle2, AlertTriangle, Lightbulb } from 'lucide-react';
+import { AlertCircle, TrendingUp, BarChart3, Zap, Target, GitPullRequest, Calendar, MessageSquare, CheckCircle2, AlertTriangle, Lightbulb, Users, Activity } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { WorkloadChart } from '@/features/dashboard/Charts';
 
 interface TrendData {
   mostCommonItems: Array<{
@@ -34,6 +36,8 @@ export default function AnalyticsPage() {
   
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
   const [performance, setPerformance] = useState<AgilePerformance | null>(null);
+  const [workload, setWorkload] = useState<MemberWorkload[]>([]);
+  const [healthIndicators, setHealthIndicators] = useState<HealthIndicators | null>(null);
   const [retrospectives, setRetrospectives] = useState<Retrospective[]>([]);
   const [trends, setTrends] = useState<TrendData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,15 +51,19 @@ export default function AnalyticsPage() {
         setLoading(true);
         setError(null);
 
-        const [velocityData, performanceData, retrospectivesData, trendsData] = await Promise.all([
+        const [velocityData, performanceData, workloadData, healthData, retrospectivesData, trendsData] = await Promise.all([
           dashboardService.getVelocity(projectId),
           dashboardService.getAgilePerformance(projectId),
+          dashboardService.getWorkload(projectId),
+          dashboardService.getHealthIndicators(projectId),
           retrospectivesService.getByProject(projectId),
           retrospectivesService.getTrends(projectId),
         ]);
 
         setVelocity(velocityData);
         setPerformance(performanceData);
+        setWorkload(workloadData);
+        setHealthIndicators(healthData);
         setRetrospectives(retrospectivesData);
         setTrends(trendsData);
       } catch (err) {
@@ -173,9 +181,17 @@ export default function AnalyticsPage() {
             <TrendingUp className="h-4 w-4" />
             Velocity
           </TabsTrigger>
+          <TabsTrigger value="workload" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Team Workload
+          </TabsTrigger>
           <TabsTrigger value="agile" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Agile Metrics
+          </TabsTrigger>
+          <TabsTrigger value="health" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Health Indicators
           </TabsTrigger>
           <TabsTrigger value="retrospectives" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
@@ -254,6 +270,76 @@ export default function AnalyticsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Team Workload Tab */}
+        <TabsContent value="workload" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Team Workload Distribution
+              </CardTitle>
+              <CardDescription>Tasks and story points assigned to each team member</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {workload.length > 0 ? (
+                <WorkloadChart data={workload} />
+              ) : (
+                <div className="text-center py-16 text-muted-foreground text-sm">
+                  No workload data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {workload.map((member) => (
+              <Card key={member.id}>
+                <CardHeader>
+                  <CardTitle className="text-lg">{member.first_name} {member.last_name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Assigned Tasks</div>
+                      <div className="text-2xl font-bold">{member.assigned_tasks}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Completed</div>
+                      <div className="text-2xl font-bold text-green-500">{member.completed_tasks}</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">In Progress</div>
+                      <div className="text-2xl font-bold text-blue-500">{member.in_progress_tasks}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Story Points</div>
+                      <div className="text-2xl font-bold">{member.total_story_points}</div>
+                    </div>
+                  </div>
+                  {member.total_story_points > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Completion Rate</span>
+                        <span className="font-medium">
+                          {((member.completed_story_points / member.total_story_points) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${(member.completed_story_points / member.total_story_points) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         {/* Agile Metrics Tab */}
@@ -337,6 +423,164 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Health Indicators Tab */}
+        <TabsContent value="health" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Timeliness</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {healthIndicators ? (
+                    healthIndicators.overdue_tasks === 0 ? (
+                      <span className="text-green-500">On Track</span>
+                    ) : healthIndicators.overdue_tasks <= 2 ? (
+                      <span className="text-orange-500">At Risk</span>
+                    ) : (
+                      <span className="text-red-500">Behind</span>
+                    )
+                  ) : 'N/A'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {healthIndicators?.overdue_tasks || 0} overdue tasks
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Quality</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {healthIndicators ? (
+                    healthIndicators.total_bugs === 0 ? (
+                      <span className="text-green-500">Excellent</span>
+                    ) : (healthIndicators.resolved_bugs / healthIndicators.total_bugs) >= 0.8 ? (
+                      <span className="text-green-500">Good</span>
+                    ) : (healthIndicators.resolved_bugs / healthIndicators.total_bugs) >= 0.5 ? (
+                      <span className="text-orange-500">Fair</span>
+                    ) : (
+                      <span className="text-red-500">Poor</span>
+                    )
+                  ) : 'N/A'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {healthIndicators?.resolved_bugs || 0} of {healthIndicators?.total_bugs || 0} bugs resolved
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Velocity Stability</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {healthIndicators ? (
+                    healthIndicators.velocity_stddev <= healthIndicators.avg_velocity * 0.2 ? (
+                      <span className="text-green-500">Stable</span>
+                    ) : healthIndicators.velocity_stddev <= healthIndicators.avg_velocity * 0.4 ? (
+                      <span className="text-orange-500">Variable</span>
+                    ) : (
+                      <span className="text-red-500">Unstable</span>
+                    )
+                  ) : 'N/A'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Std dev: {healthIndicators?.velocity_stddev?.toFixed(1) || 'N/A'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Detailed Health Metrics
+              </CardTitle>
+              <CardDescription>Comprehensive project health indicators</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Timeliness Indicator</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Overdue Tasks</span>
+                      <span className="text-sm font-medium">{healthIndicators?.overdue_tasks || 0}</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3">
+                      <div
+                        className={`h-3 rounded-full ${
+                          (healthIndicators?.overdue_tasks || 0) === 0 ? 'bg-green-500' :
+                          (healthIndicators?.overdue_tasks || 0) <= 2 ? 'bg-orange-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min((healthIndicators?.overdue_tasks || 0) * 25, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-medium">Quality Indicator</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Bug Resolution Rate</span>
+                      <span className="text-sm font-medium">
+                        {healthIndicators && healthIndicators.total_bugs > 0
+                          ? `${((healthIndicators.resolved_bugs / healthIndicators.total_bugs) * 100).toFixed(1)}%`
+                          : '100%'
+                        }
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3">
+                      <div
+                        className={`h-3 rounded-full ${
+                          !healthIndicators || healthIndicators.total_bugs === 0 ? 'bg-green-500' :
+                          (healthIndicators.resolved_bugs / healthIndicators.total_bugs) >= 0.8 ? 'bg-green-500' :
+                          (healthIndicators.resolved_bugs / healthIndicators.total_bugs) >= 0.5 ? 'bg-orange-500' : 'bg-red-500'
+                        }`}
+                        style={{
+                          width: healthIndicators && healthIndicators.total_bugs > 0
+                            ? `${(healthIndicators.resolved_bugs / healthIndicators.total_bugs) * 100}%`
+                            : '100%'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Velocity Stability</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Average Velocity</span>
+                      <span className="text-sm font-medium">{healthIndicators?.avg_velocity?.toFixed(1) || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Standard Deviation</span>
+                      <span className="text-sm font-medium">{healthIndicators?.velocity_stddev?.toFixed(1) || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Lower standard deviation indicates more stable velocity
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Retrospectives Tab */}
@@ -628,5 +872,3 @@ export default function AnalyticsPage() {
   );
 }
 
-// Add the missing Badge component import if not already imported
-import { Badge } from '@/shared/components/ui/badge';

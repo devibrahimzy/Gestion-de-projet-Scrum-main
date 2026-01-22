@@ -17,15 +17,19 @@ exports.getProjectDashboard = async (req, res) => {
         }
 
         const [[mainMetrics]] = await Dashboard.getMainMetrics(projectId);
+        const [[currentSprint]] = await Dashboard.getCurrentSprint(projectId);
         const [memberWorkload] = await Dashboard.getMemberWorkload(projectId);
         const [velocityHistory] = await Dashboard.getVelocityHistory(projectId);
+        const [[velocityComparison]] = await Dashboard.getVelocityComparison(projectId);
         const [[agileMetrics]] = await Dashboard.getAgileMetrics(projectId);
         const [sprints] = await Dashboard.getSprintOverview(projectId);
 
         res.json({
             summary: mainMetrics,
+            currentSprint: currentSprint || null,
             workload: memberWorkload,
             velocity: velocityHistory,
+            velocityComparison: velocityComparison || { avg_velocity: 0, current_velocity: 0 },
             agile: agileMetrics,
             sprints: sprints
         });
@@ -88,6 +92,26 @@ exports.generateProjectReport = async (req, res) => {
         res.json(report);
     } catch (err) {
         res.status(500).json({ message: "Error generating report", error: err.message });
+    }
+};
+
+exports.getBurndownData = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const [burndownData] = await Dashboard.getBurndownData(projectId);
+        res.json(burndownData);
+    } catch (err) {
+        res.status(500).json({ message: "Error fetching burndown data", error: err.message });
+    }
+};
+
+exports.getHealthIndicators = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const [[indicators]] = await Dashboard.getHealthIndicators(projectId);
+        res.json(indicators);
+    } catch (err) {
+        res.status(500).json({ message: "Error fetching health indicators", error: err.message });
     }
 };
 

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { dashboardService } from '@/features/dashboard/dashboard.service';
-import { DashboardSummary, VelocityData, AgilePerformance } from '@/features/dashboard/dashboard.types';
+import { DashboardSummary, VelocityData, AgilePerformance, CurrentSprint, VelocityComparison, BurndownData } from '@/features/dashboard/dashboard.types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { Loader2, AlertCircle, Users, CheckCircle2, Zap, TrendingUp, Activity } from 'lucide-react';
+import { Loader2, AlertCircle, Users, CheckCircle2, Zap, TrendingUp, Activity, Calendar, Target, Clock } from 'lucide-react';
 import { BurndownChart } from '@/features/dashboard/Charts';
 import { Progress } from '@/shared/components/ui/progress';
+import { Badge } from '@/shared/components/ui/badge';
 
 
 
@@ -14,8 +15,11 @@ export default function ProjectOverview() {
   const { id } = useParams<{ id: string }>();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [currentSprint, setCurrentSprint] = useState<CurrentSprint | null>(null);
   const [velocity, setVelocity] = useState<VelocityData[]>([]);
+  const [velocityComparison, setVelocityComparison] = useState<VelocityComparison | null>(null);
   const [performance, setPerformance] = useState<AgilePerformance | null>(null);
+  const [burndownData, setBurndownData] = useState<BurndownData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,15 +32,21 @@ export default function ProjectOverview() {
         setError(null);
 
         // Fetch dashboard data
-        const [summaryData, velocityData, performanceData] = await Promise.all([
+        const [summaryData, currentSprintData, velocityData, velocityCompData, performanceData, burndownData] = await Promise.all([
           dashboardService.getSummary(id),
+          dashboardService.getCurrentSprint(id),
           dashboardService.getVelocity(id),
+          dashboardService.getVelocityComparison(id),
           dashboardService.getAgilePerformance(id),
+          dashboardService.getBurndownData(id),
         ]);
 
         setSummary(summaryData);
+        setCurrentSprint(currentSprintData);
         setVelocity(velocityData);
+        setVelocityComparison(velocityCompData);
         setPerformance(performanceData);
+        setBurndownData(burndownData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
         console.error('Error fetching dashboard:', err);
@@ -120,67 +130,150 @@ export default function ProjectOverview() {
   }
 
   // Safely calculate values with fallbacks
-  const totalItems = summary?.backlogStats?.totalItems || 0;
-  const completedItems = summary?.backlogStats?.completedItems || 0;
-  const openTasks = totalItems - completedItems;
-  const completionRate = summary?.backlogStats?.completionRate || 0;
-  const totalStoryPoints = summary?.backlogStats?.totalStoryPoints || 0;
+  const projectName = summary?.project_name || 'Project';
+  const totalItems = summary?.total_items || 0;
+  const completedItems = summary?.completed_items || 0;
+  const inProgressItems = summary?.in_progress_items || 0;
+  const todoItems = summary?.todo_items || 0;
+  const overdueItems = summary?.overdue_items || 0;
+  const totalStoryPoints = summary?.total_story_points || 0;
+  const completedStoryPoints = summary?.completed_story_points || 0;
 
-  const activeSprints = summary?.sprintStats?.activeSprints || 0;
-  const completedSprints = summary?.sprintStats?.completedSprints || 0;
-  const totalSprints = summary?.sprintStats?.totalSprints || 0;
+  // Sprint calculations
+  const sprintProgress = currentSprint ? (currentSprint.total_story_points > 0 ? (currentSprint.completed_story_points / currentSprint.total_story_points) * 100 : 0) : 0;
 
-  const totalMembers = summary?.teamStats?.totalMembers || 0;
+  // Velocity comparison
+  const avgVelocity = velocityComparison?.avg_velocity || 0;
+  const currentVelocity = velocityComparison?.current_velocity || 0;
+  const velocityDiff = currentVelocity - avgVelocity;
 
   return (
     <div className="space-y-8">
+      {/* Project Header */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">{projectName}</h1>
+        <p className="text-muted-foreground">
+          Real-time project dashboard and sprint overview
+        </p>
+      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Current Sprint Section */}
+      {currentSprint && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Tasks</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Current Sprint: {currentSprint.name}
+            </CardTitle>
+            <CardDescription>
+              {new Date(currentSprint.start_date).toLocaleDateString()} - {new Date(currentSprint.end_date).toLocaleDateString()}
+              <span className="ml-2">
+                <Badge variant={currentSprint.days_remaining > 0 ? "default" : "destructive"}>
+                  {currentSprint.days_remaining} days remaining
+                </Badge>
+              </span>
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{openTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              {completedItems} completed of {totalItems} total
-              {totalStoryPoints > 0 && (
-                <span className="block mt-1">
-                  {totalStoryPoints} total story points
-                </span>
-              )}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sprints</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {activeSprints} Active
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">Sprint Progress</div>
+                <div className="text-2xl font-bold">{sprintProgress.toFixed(1)}%</div>
+                <Progress value={sprintProgress} className="h-2" />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">Tasks Completed</div>
+                <div className="text-2xl font-bold">{currentSprint.completed_tasks}/{currentSprint.total_tasks}</div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">Story Points</div>
+                <div className="text-2xl font-bold">{currentSprint.completed_story_points}/{currentSprint.total_story_points}</div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {completedSprints} completed of {totalSprints} total
-            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{completedItems}</div>
+            <p className="text-xs text-muted-foreground">Tasks done</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalMembers}</div>
-            <p className="text-xs text-muted-foreground">Working on this project</p>
+            <div className="text-2xl font-bold">{inProgressItems}</div>
+            <p className="text-xs text-muted-foreground">Currently working</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">To Do</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{todoItems}</div>
+            <p className="text-xs text-muted-foreground">Ready to start</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overdueItems}</div>
+            <p className="text-xs text-muted-foreground">Past due date</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Velocity Comparison */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Velocity Performance
+          </CardTitle>
+          <CardDescription>Current sprint vs average velocity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-muted-foreground">Current Velocity</div>
+              <div className="text-2xl font-bold">{currentVelocity.toFixed(1)}</div>
+              <p className="text-xs text-muted-foreground">Story points this sprint</p>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-muted-foreground">Average Velocity</div>
+              <div className="text-2xl font-bold">{avgVelocity.toFixed(1)}</div>
+              <p className="text-xs text-muted-foreground">Story points average</p>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-muted-foreground">Performance</div>
+              <div className={`text-2xl font-bold ${velocityDiff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {velocityDiff >= 0 ? '+' : ''}{velocityDiff.toFixed(1)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {velocityDiff >= 0 ? 'Above average' : 'Below average'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Velocity Chart Section */}
       {velocity && velocity.length > 0 && (
@@ -290,16 +383,16 @@ export default function ProjectOverview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Burndown Chart
+              Sprint Burndown Chart
             </CardTitle>
-            <CardDescription>Sprint progress over time</CardDescription>
+            <CardDescription>Current sprint progress over time (auto-updated daily)</CardDescription>
           </CardHeader>
           <CardContent>
-            {performance && performance.burndownData && performance.burndownData.length > 0 ? (
-              <BurndownChart data={performance.burndownData} />
+            {burndownData && burndownData.length > 0 ? (
+              <BurndownChart data={burndownData} />
             ) : (
               <div className="text-center py-16 text-muted-foreground text-sm">
-                No burndown data available
+                No burndown data available for current sprint
               </div>
             )}
           </CardContent>
